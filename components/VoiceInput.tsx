@@ -25,6 +25,7 @@ async function transcribeWithAssemblyAI(uri: string, mimeType: string): Promise<
   // 1. Fetch audio as blob
   const audioRes = await fetch(uri);
   const audioBlob = await audioRes.blob();
+  console.log('[AssemblyAI] Audio blob size:', audioBlob.size, 'type:', mimeType);
 
   // 2. Upload to AssemblyAI
   const uploadRes = await fetch(`${ASSEMBLYAI_BASE}/upload`, {
@@ -35,8 +36,10 @@ async function transcribeWithAssemblyAI(uri: string, mimeType: string): Promise<
     },
     body: audioBlob,
   });
-  const { upload_url } = await uploadRes.json();
-  if (!upload_url) throw new Error('AssemblyAI upload failed');
+  const uploadData = await uploadRes.json();
+  console.log('[AssemblyAI] Upload response:', JSON.stringify(uploadData));
+  const { upload_url } = uploadData;
+  if (!upload_url) throw new Error(`AssemblyAI upload failed: ${JSON.stringify(uploadData)}`);
 
   // 3. Request transcription
   const transcriptRes = await fetch(`${ASSEMBLYAI_BASE}/transcript`, {
@@ -45,10 +48,12 @@ async function transcribeWithAssemblyAI(uri: string, mimeType: string): Promise<
       authorization: ASSEMBLYAI_API_KEY,
       'content-type': 'application/json',
     },
-    body: JSON.stringify({ audio_url: upload_url }),
+    body: JSON.stringify({ audio_url: upload_url, speech_model: 'universal-2' }),
   });
-  const { id } = await transcriptRes.json();
-  if (!id) throw new Error('AssemblyAI transcript request failed');
+  const transcriptData = await transcriptRes.json();
+  console.log('[AssemblyAI] Transcript response:', JSON.stringify(transcriptData));
+  const { id } = transcriptData;
+  if (!id) throw new Error(`AssemblyAI transcript failed: ${JSON.stringify(transcriptData)}`);
 
   // 4. Poll until done
   while (true) {
@@ -57,6 +62,7 @@ async function transcribeWithAssemblyAI(uri: string, mimeType: string): Promise<
       headers: { authorization: ASSEMBLYAI_API_KEY },
     });
     const poll = await pollRes.json();
+    console.log('[AssemblyAI] Poll status:', poll.status);
     if (poll.status === 'completed') return poll.text || '';
     if (poll.status === 'error') throw new Error(`AssemblyAI error: ${poll.error}`);
   }
