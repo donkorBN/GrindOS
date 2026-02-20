@@ -10,7 +10,12 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Mic, MicOff, Send, Keyboard } from 'lucide-react-native';
-import { Audio } from 'expo-av';
+import {
+  useAudioRecorder,
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+} from 'expo-audio';
 import { useThemeColors } from '@/hooks/useThemeColors';
 
 const ASSEMBLYAI_API_KEY = process.env.EXPO_PUBLIC_ASSEMBLYAI_API_KEY!;
@@ -68,13 +73,17 @@ export default function VoiceInput({ onTranscript, isProcessing }: VoiceInputPro
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [showTextInput, setShowTextInput] = useState(false);
   const [textInput, setTextInput] = useState('');
-  const [recordingObj, setRecordingObj] = useState<Audio.Recording | null>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
+
+  // ── expo-audio recorder (native) ────────────────────────────────────────
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+
+  // ── web recording refs ───────────────────────────────────────────────────
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
 
+  // ── Pulse animation ──────────────────────────────────────────────────────
   useEffect(() => {
     if (isRecording) {
       const pulse = Animated.loop(
@@ -91,82 +100,46 @@ export default function VoiceInput({ onTranscript, isProcessing }: VoiceInputPro
       );
       pulse.start();
       glow.start();
-      return () => {
-        pulse.stop();
-        glow.stop();
-      };
+      return () => { pulse.stop(); glow.stop(); };
     } else {
       pulseAnim.setValue(1);
       glowAnim.setValue(0);
     }
   }, [isRecording, pulseAnim, glowAnim]);
 
+  // ── Native recording (expo-audio) ────────────────────────────────────────
   const startRecordingNative = useCallback(async () => {
     try {
-      console.log('[VoiceInput] Requesting permissions...');
-      const { granted } = await Audio.requestPermissionsAsync();
+      const { granted } = await requestRecordingPermissionsAsync();
       if (!granted) {
         console.log('[VoiceInput] Permission denied');
         return;
       }
 
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
-
-      const recording = new Audio.Recording();
-      await recording.prepareToRecordAsync({
-        android: {
-          extension: '.m4a',
-          outputFormat: 3,
-          audioEncoder: 3,
-          sampleRate: 44100,
-          numberOfChannels: 1,
-          bitRate: 128000,
-        },
-        ios: {
-          extension: '.wav',
-          outputFormat: 6,
-          audioQuality: 127,
-          sampleRate: 44100,
-          numberOfChannels: 1,
-          bitRate: 128000,
-          linearPCMBitDepth: 16,
-          linearPCMIsBigEndian: false,
-          linearPCMIsFloat: false,
-        },
-        web: {},
-      });
-      await recording.startAsync();
-      setRecordingObj(recording);
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await recorder.prepareToRecordAsync();
+      recorder.record();
       setIsRecording(true);
-      console.log('[VoiceInput] Recording started (native)');
     } catch (err) {
       console.error('[VoiceInput] Failed to start recording:', err);
     }
-  }, []);
+  }, [recorder]);
 
   const stopRecordingNative = useCallback(async () => {
-    if (!recordingObj) return;
     try {
-      console.log('[VoiceInput] Stopping recording (native)...');
       setIsRecording(false);
       setIsTranscribing(true);
 
-      await recordingObj.stopAndUnloadAsync();
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+      await recorder.stop();
+      await setAudioModeAsync({ allowsRecording: false });
 
-      const uri = recordingObj.getURI();
-      setRecordingObj(null);
-
+      const uri = recorder.uri;
       if (!uri) {
         console.error('[VoiceInput] No recording URI');
-        setIsTranscribing(false);
         return;
       }
 
-      const ext = uri.split('.').pop() || 'wav';
+      const ext = uri.split('.').pop() || 'm4a';
       const mimeType = ext === 'm4a' ? 'audio/mp4' : `audio/${ext}`;
       const text = await transcribeWithAssemblyAI(uri, mimeType);
       console.log('[VoiceInput] Transcription:', text);
@@ -176,27 +149,18 @@ export default function VoiceInput({ onTranscript, isProcessing }: VoiceInputPro
     } finally {
       setIsTranscribing(false);
     }
-  }, [recordingObj, onTranscript]);
+  }, [recorder, onTranscript]);
 
+  // ── Web recording ────────────────────────────────────────────────────────
   const startRecordingWeb = useCallback(async () => {
     try {
-      console.log('[VoiceInput] Starting web recording...');
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
-      audioChunksRef.current = [];
 
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-
       mediaRecorder.start();
       setIsRecording(true);
-      console.log('[VoiceInput] Web recording started');
     } catch (err) {
       console.error('[VoiceInput] Web recording error:', err);
     }
@@ -217,27 +181,20 @@ export default function VoiceInput({ onTranscript, isProcessing }: VoiceInputPro
       });
 
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current.getTracks().forEach(t => t.stop());
         streamRef.current = null;
       }
 
-      // Upload blob to AssemblyAI
       const uploadRes = await fetch(`${ASSEMBLYAI_BASE}/upload`, {
         method: 'POST',
-        headers: {
-          authorization: ASSEMBLYAI_API_KEY,
-          'content-type': 'audio/webm',
-        },
+        headers: { authorization: ASSEMBLYAI_API_KEY, 'content-type': 'audio/webm' },
         body: audioBlob,
       });
       const { upload_url } = await uploadRes.json();
 
       const transcriptRes = await fetch(`${ASSEMBLYAI_BASE}/transcript`, {
         method: 'POST',
-        headers: {
-          authorization: ASSEMBLYAI_API_KEY,
-          'content-type': 'application/json',
-        },
+        headers: { authorization: ASSEMBLYAI_API_KEY, 'content-type': 'application/json' },
         body: JSON.stringify({ audio_url: upload_url }),
       });
       const { id } = await transcriptRes.json();
@@ -248,10 +205,7 @@ export default function VoiceInput({ onTranscript, isProcessing }: VoiceInputPro
           headers: { authorization: ASSEMBLYAI_API_KEY },
         });
         const poll = await pollRes.json();
-        if (poll.status === 'completed') {
-          if (poll.text) onTranscript(poll.text);
-          break;
-        }
+        if (poll.status === 'completed') { if (poll.text) onTranscript(poll.text); break; }
         if (poll.status === 'error') throw new Error(poll.error);
       }
     } catch (err) {
@@ -277,38 +231,38 @@ export default function VoiceInput({ onTranscript, isProcessing }: VoiceInputPro
     }
   }, [textInput, onTranscript]);
 
-  const busy = isTranscribing || isProcessing;
+  const isDisabled = isProcessing || isTranscribing;
+  const glowColor = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['rgba(57,255,20,0.1)', 'rgba(57,255,20,0.4)'],
+  });
 
   if (showTextInput) {
     return (
       <View style={[styles.textInputContainer, { backgroundColor: colors.surface, borderColor: colors.surfaceBorder }]}>
         <TextInput
-          style={[styles.textInput, { color: colors.text }]}
-          placeholder="Type your plans for today..."
-          placeholderTextColor={colors.textMuted}
+          style={[styles.textField, { color: colors.text }]}
           value={textInput}
           onChangeText={setTextInput}
+          placeholder="Type your tasks for today..."
+          placeholderTextColor={colors.textMuted}
           multiline
           autoFocus
-          testID="text-input"
         />
-        <View style={styles.textInputActions}>
+        <View style={styles.textActions}>
           <TouchableOpacity
-            style={styles.textActionBtn}
+            style={[styles.textActionBtn, { backgroundColor: colors.surfaceLight }]}
             onPress={() => setShowTextInput(false)}
           >
-            <Mic size={20} color={colors.textSecondary} />
+            <MicOff size={18} color={colors.textSecondary} />
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.sendBtn, { backgroundColor: colors.toxic }, !textInput.trim() && styles.sendBtnDisabled]}
+            style={[styles.textSendBtn, { backgroundColor: colors.toxic }]}
             onPress={handleTextSubmit}
-            disabled={!textInput.trim() || busy}
+            disabled={!textInput.trim()}
           >
-            {busy ? (
-              <ActivityIndicator size="small" color={colors.background} />
-            ) : (
-              <Send size={18} color={colors.background} />
-            )}
+            <Send size={18} color={colors.background} />
+            <Text style={[styles.sendText, { color: colors.background }]}>Generate Plan</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -317,52 +271,48 @@ export default function VoiceInput({ onTranscript, isProcessing }: VoiceInputPro
 
   return (
     <View style={styles.container}>
-      <View style={styles.micRow}>
-        <Animated.View
-          style={[
-            styles.micOuter,
-            {
-              transform: [{ scale: pulseAnim }],
-              shadowColor: isRecording ? colors.toxic : 'transparent',
-              shadowOpacity: isRecording ? 0.6 : 0,
-              shadowRadius: isRecording ? 20 : 0,
-            },
-          ]}
-        >
-          <TouchableOpacity
-            style={[
-              styles.micButton,
-              { backgroundColor: colors.surface, borderColor: colors.toxic },
-              isRecording && { backgroundColor: colors.toxic, borderColor: colors.toxic },
-              busy && { borderColor: colors.textMuted, opacity: 0.7 },
-            ]}
-            onPress={handleMicPress}
-            disabled={busy}
-            activeOpacity={0.7}
-            testID="mic-button"
-          >
-            {busy ? (
-              <ActivityIndicator size="large" color={colors.toxic} />
-            ) : isRecording ? (
-              <MicOff size={32} color={colors.background} />
-            ) : (
-              <Mic size={32} color={colors.toxic} />
-            )}
-          </TouchableOpacity>
-        </Animated.View>
+      <Animated.View style={[styles.glowRing, { backgroundColor: glowColor }]} />
 
+      <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
         <TouchableOpacity
-          style={[styles.keyboardBtn, { backgroundColor: colors.surface, borderColor: colors.surfaceBorder }]}
-          onPress={() => setShowTextInput(true)}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={[
+            styles.micBtn,
+            { backgroundColor: isRecording ? colors.danger : colors.toxic },
+            isDisabled && styles.micBtnDisabled,
+          ]}
+          onPress={handleMicPress}
+          disabled={isDisabled}
+          activeOpacity={0.8}
         >
-          <Keyboard size={20} color={colors.textMuted} />
+          {isTranscribing ? (
+            <ActivityIndicator color={colors.background} size="small" />
+          ) : isRecording ? (
+            <MicOff size={28} color={colors.background} />
+          ) : (
+            <Mic size={28} color={colors.background} />
+          )}
         </TouchableOpacity>
-      </View>
+      </Animated.View>
 
       <Text style={[styles.hint, { color: colors.textMuted }]}>
-        {busy ? 'Processing...' : isRecording ? 'Listening... Tap to stop' : 'Tap to speak your plans'}
+        {isTranscribing
+          ? 'Transcribing...'
+          : isProcessing
+            ? 'Generating plan...'
+            : isRecording
+              ? 'Tap to stop recording'
+              : 'Tap to speak your plans'}
       </Text>
+
+      {!isRecording && !isTranscribing && !isProcessing && (
+        <TouchableOpacity
+          style={[styles.keyboardBtn, { borderColor: colors.surfaceBorder }]}
+          onPress={() => setShowTextInput(true)}
+        >
+          <Keyboard size={16} color={colors.textSecondary} />
+          <Text style={[styles.keyboardText, { color: colors.textSecondary }]}>Type instead</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -370,66 +320,78 @@ export default function VoiceInput({ onTranscript, isProcessing }: VoiceInputPro
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
+    gap: 16,
     paddingVertical: 20,
   },
-  micRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
+  glowRing: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    top: 10,
   },
-  micOuter: {
-    borderRadius: 50,
-    elevation: 10,
-  },
-  micButton: {
+  micBtn: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#39FF14',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  keyboardBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+  micBtnDisabled: {
+    opacity: 0.6,
   },
   hint: {
     fontSize: 13,
-    marginTop: 12,
-    letterSpacing: 0.5,
+    textAlign: 'center',
+  },
+  keyboardBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  keyboardText: {
+    fontSize: 13,
   },
   textInputContainer: {
     borderRadius: 16,
     borderWidth: 1,
-    padding: 14,
-    marginHorizontal: 4,
+    padding: 16,
+    gap: 12,
   },
-  textInput: {
+  textField: {
     fontSize: 15,
     minHeight: 80,
     textAlignVertical: 'top',
   },
-  textInputActions: {
+  textActions: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 10,
     alignItems: 'center',
-    marginTop: 10,
   },
   textActionBtn: {
-    padding: 8,
+    padding: 10,
+    borderRadius: 10,
   },
-  sendBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  textSendBtn: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
   },
-  sendBtnDisabled: {
-    opacity: 0.4,
+  sendText: {
+    fontSize: 14,
+    fontWeight: '700',
   },
 });
