@@ -48,7 +48,7 @@ async function transcribeWithAssemblyAI(uri: string, mimeType: string): Promise<
       authorization: ASSEMBLYAI_API_KEY,
       'content-type': 'application/json',
     },
-    body: JSON.stringify({ audio_url: upload_url, speech_model: 'universal-2' }),
+    body: JSON.stringify({ audio_url: upload_url, speech_models: ['universal-2'] }),
   });
   const transcriptData = await transcriptRes.json();
   console.log('[AssemblyAI] Transcript response:', JSON.stringify(transcriptData));
