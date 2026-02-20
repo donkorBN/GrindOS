@@ -13,7 +13,49 @@ import { Mic, MicOff, Send, Keyboard } from 'lucide-react-native';
 import { Audio } from 'expo-av';
 import { useThemeColors } from '@/hooks/useThemeColors';
 
-const STT_URL = 'https://toolkit.rork.com/stt/transcribe/';
+const ASSEMBLYAI_API_KEY = process.env.EXPO_PUBLIC_ASSEMBLYAI_API_KEY!;
+const ASSEMBLYAI_BASE = 'https://api.assemblyai.com/v2';
+
+async function transcribeWithAssemblyAI(uri: string, mimeType: string): Promise<string> {
+  // 1. Fetch audio as blob
+  const audioRes = await fetch(uri);
+  const audioBlob = await audioRes.blob();
+
+  // 2. Upload to AssemblyAI
+  const uploadRes = await fetch(`${ASSEMBLYAI_BASE}/upload`, {
+    method: 'POST',
+    headers: {
+      authorization: ASSEMBLYAI_API_KEY,
+      'content-type': mimeType,
+    },
+    body: audioBlob,
+  });
+  const { upload_url } = await uploadRes.json();
+  if (!upload_url) throw new Error('AssemblyAI upload failed');
+
+  // 3. Request transcription
+  const transcriptRes = await fetch(`${ASSEMBLYAI_BASE}/transcript`, {
+    method: 'POST',
+    headers: {
+      authorization: ASSEMBLYAI_API_KEY,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ audio_url: upload_url }),
+  });
+  const { id } = await transcriptRes.json();
+  if (!id) throw new Error('AssemblyAI transcript request failed');
+
+  // 4. Poll until done
+  while (true) {
+    await new Promise(r => setTimeout(r, 1500));
+    const pollRes = await fetch(`${ASSEMBLYAI_BASE}/transcript/${id}`, {
+      headers: { authorization: ASSEMBLYAI_API_KEY },
+    });
+    const poll = await pollRes.json();
+    if (poll.status === 'completed') return poll.text || '';
+    if (poll.status === 'error') throw new Error(`AssemblyAI error: ${poll.error}`);
+  }
+}
 
 interface VoiceInputProps {
   onTranscript: (text: string) => void;
@@ -124,24 +166,11 @@ export default function VoiceInput({ onTranscript, isProcessing }: VoiceInputPro
         return;
       }
 
-      const uriParts = uri.split('.');
-      const fileType = uriParts[uriParts.length - 1];
-      const audioFile = {
-        uri,
-        name: 'recording.' + fileType,
-        type: 'audio/' + fileType,
-      };
-
-      const formData = new FormData();
-      formData.append('audio', audioFile as unknown as Blob);
-
-      const response = await fetch(STT_URL, { method: 'POST', body: formData });
-      const result = await response.json();
-      console.log('[VoiceInput] Transcription:', result.text);
-
-      if (result.text) {
-        onTranscript(result.text);
-      }
+      const ext = uri.split('.').pop() || 'wav';
+      const mimeType = ext === 'm4a' ? 'audio/mp4' : `audio/${ext}`;
+      const text = await transcribeWithAssemblyAI(uri, mimeType);
+      console.log('[VoiceInput] Transcription:', text);
+      if (text) onTranscript(text);
     } catch (err) {
       console.error('[VoiceInput] Transcription error:', err);
     } finally {
@@ -179,9 +208,11 @@ export default function VoiceInput({ onTranscript, isProcessing }: VoiceInputPro
       setIsRecording(false);
       setIsTranscribing(true);
 
-      await new Promise<void>((resolve) => {
-        if (!mediaRecorderRef.current) { resolve(); return; }
-        mediaRecorderRef.current.onstop = () => resolve();
+      const audioBlob: Blob = await new Promise((resolve) => {
+        const chunks: Blob[] = [];
+        if (!mediaRecorderRef.current) { resolve(new Blob()); return; }
+        mediaRecorderRef.current.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+        mediaRecorderRef.current.onstop = () => resolve(new Blob(chunks, { type: 'audio/webm' }));
         mediaRecorderRef.current.stop();
       });
 
@@ -190,16 +221,38 @@ export default function VoiceInput({ onTranscript, isProcessing }: VoiceInputPro
         streamRef.current = null;
       }
 
-      const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-      const formData = new FormData();
-      formData.append('audio', audioBlob, 'recording.webm');
+      // Upload blob to AssemblyAI
+      const uploadRes = await fetch(`${ASSEMBLYAI_BASE}/upload`, {
+        method: 'POST',
+        headers: {
+          authorization: ASSEMBLYAI_API_KEY,
+          'content-type': 'audio/webm',
+        },
+        body: audioBlob,
+      });
+      const { upload_url } = await uploadRes.json();
 
-      const response = await fetch(STT_URL, { method: 'POST', body: formData });
-      const result = await response.json();
-      console.log('[VoiceInput] Web transcription:', result.text);
+      const transcriptRes = await fetch(`${ASSEMBLYAI_BASE}/transcript`, {
+        method: 'POST',
+        headers: {
+          authorization: ASSEMBLYAI_API_KEY,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({ audio_url: upload_url }),
+      });
+      const { id } = await transcriptRes.json();
 
-      if (result.text) {
-        onTranscript(result.text);
+      while (true) {
+        await new Promise(r => setTimeout(r, 1500));
+        const pollRes = await fetch(`${ASSEMBLYAI_BASE}/transcript/${id}`, {
+          headers: { authorization: ASSEMBLYAI_API_KEY },
+        });
+        const poll = await pollRes.json();
+        if (poll.status === 'completed') {
+          if (poll.text) onTranscript(poll.text);
+          break;
+        }
+        if (poll.status === 'error') throw new Error(poll.error);
       }
     } catch (err) {
       console.error('[VoiceInput] Web transcription error:', err);
