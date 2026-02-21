@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Mic, MicOff, Send, Keyboard, RotateCcw, CheckCircle2 } from 'lucide-react-native';
+import GlowingCard from '@/components/GlowingCard';
 import {
   useAudioRecorder,
   RecordingPresets,
@@ -262,33 +263,35 @@ export default function VoiceInput({ onTranscript, isProcessing }: VoiceInputPro
   // ── Text input mode ──────────────────────────────────────────────────
   if (showTextInput) {
     return (
-      <View style={[styles.textInputContainer, { backgroundColor: colors.surface, borderColor: colors.surfaceBorder }]}>
-        <TextInput
-          style={[styles.textField, { color: colors.text }]}
-          value={textInput}
-          onChangeText={setTextInput}
-          placeholder="Type your tasks for today..."
-          placeholderTextColor={colors.textMuted}
-          multiline
-          autoFocus
-        />
-        <View style={styles.textActions}>
-          <TouchableOpacity
-            style={[styles.textActionBtn, { backgroundColor: colors.surfaceLight }]}
-            onPress={() => setShowTextInput(false)}
-          >
-            <MicOff size={18} color={colors.textSecondary} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.textSendBtn, { backgroundColor: colors.toxic }]}
-            onPress={handleTextSubmit}
-            disabled={!textInput.trim()}
-          >
-            <Send size={18} color={colors.background} />
-            <Text style={[styles.sendText, { color: colors.background }]}>Generate Plan</Text>
-          </TouchableOpacity>
+      <GlowingCard active={true}>
+        <View style={[styles.textInputInner, { backgroundColor: colors.surface }]}>
+          <TextInput
+            style={[styles.textField, { color: colors.text }]}
+            value={textInput}
+            onChangeText={setTextInput}
+            placeholder="Type your tasks for today..."
+            placeholderTextColor={colors.textMuted}
+            multiline
+            autoFocus
+          />
+          <View style={styles.textActions}>
+            <TouchableOpacity
+              style={[styles.textActionBtn, { backgroundColor: colors.surfaceLight }]}
+              onPress={() => setShowTextInput(false)}
+            >
+              <MicOff size={18} color={colors.textSecondary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.textSendBtn, { backgroundColor: colors.toxic }]}
+              onPress={handleTextSubmit}
+              disabled={!textInput.trim()}
+            >
+              <Send size={18} color={colors.background} />
+              <Text style={[styles.sendText, { color: colors.background }]}>Generate Plan</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      </GlowingCard>
     );
   }
 
@@ -425,9 +428,8 @@ const styles = StyleSheet.create({
   keyboardText: {
     fontSize: 13,
   },
-  textInputContainer: {
-    borderRadius: 16,
-    borderWidth: 1,
+  textInputInner: {
+    borderRadius: 14,
     padding: 16,
     gap: 12,
   },
