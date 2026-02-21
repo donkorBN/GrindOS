@@ -52,23 +52,21 @@ function StreakWidget({ streak }: { streak: number }) {
     }
   }, [streak, pulseAnim]);
 
-  const streakLabel = streak === 0 ? 'No streak yet' : streak === 1 ? '1 day' : `${streak} days`;
-  const bgColor = streak >= 7 ? '#FF6B0020' : streak >= 3 ? '#FFB80020' : colors.toxic + '10';
-  const accentColor = streak >= 7 ? '#FF6B00' : streak >= 3 ? '#FFB800' : colors.toxic;
+  const streakLabel = streak === 0 ? 'No streak' : streak === 1 ? '1 day' : `${streak} days`;
 
   return (
-    <Animated.View style={[styles.streakWidget, { backgroundColor: bgColor, borderColor: accentColor + '30' }, entryStyle]}>
+    <Animated.View style={[styles.streakWidget, { backgroundColor: colors.surface, borderColor: colors.surfaceBorder }, entryStyle]}>
       <View style={styles.streakTop}>
         <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-          <Flame size={28} color={accentColor} fill={streak > 0 ? accentColor : 'transparent'} />
+          <Flame size={24} color={colors.textSecondary} fill={streak > 0 ? colors.textSecondary : 'transparent'} />
         </Animated.View>
-        <Text style={[styles.streakCount, { color: accentColor }]}>{streak}</Text>
+        <Text style={[styles.streakCount, { color: colors.text }]}>{streak}</Text>
       </View>
       <Text style={[styles.streakLabel, { color: colors.textSecondary }]}>{streakLabel}</Text>
-      <View style={[styles.streakBar, { backgroundColor: accentColor + '20' }]}>
-        <View style={[styles.streakBarFill, { width: `${Math.min((streak / 7) * 100, 100)}%`, backgroundColor: accentColor }]} />
+      <View style={[styles.streakBar, { backgroundColor: colors.surfaceLight }]}>
+        <View style={[styles.streakBarFill, { width: `${Math.min((streak / 7) * 100, 100)}%`, backgroundColor: colors.accent }]} />
       </View>
-      <Text style={[styles.streakGoal, { color: colors.textMuted }]}>{streak >= 7 ? '🔥 On fire!' : `${7 - streak} to weekly goal`}</Text>
+      <Text style={[styles.streakGoal, { color: colors.textMuted }]}>{streak >= 7 ? 'On fire' : `${7 - streak} to weekly`}</Text>
     </Animated.View>
   );
 }
@@ -77,38 +75,34 @@ function TimeLeftWidget({ tasks }: { tasks: Task[] }) {
   const colors = useThemeColors();
   const entryStyle = useAnimatedEntry(80);
 
-  const { hoursLeft, minutesLeft, urgency } = useMemo(() => {
+  const { hoursLeft, minutesLeft } = useMemo(() => {
     const now = new Date();
     const endOfDay = new Date(now);
     endOfDay.setHours(23, 59, 59);
     const diffMs = endOfDay.getTime() - now.getTime();
     const h = Math.floor(diffMs / (1000 * 60 * 60));
     const m = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    const urg = h <= 3 ? 'critical' as const : h <= 6 ? 'warning' as const : 'normal' as const;
-    return { hoursLeft: h, minutesLeft: m, urgency: urg };
+    return { hoursLeft: h, minutesLeft: m };
   }, []);
 
   const pendingCount = tasks.filter(t => !t.completed).length;
   const totalMinutes = tasks.filter(t => !t.completed).reduce((s, t) => s + t.duration, 0);
 
-  const urgencyColor = urgency === 'critical' ? colors.danger : urgency === 'warning' ? colors.warning : colors.textSecondary;
-  const bgColor = urgency === 'critical' ? colors.danger + '12' : urgency === 'warning' ? colors.warning + '12' : colors.surface;
-
   return (
-    <Animated.View style={[styles.timeWidget, { backgroundColor: bgColor, borderColor: urgencyColor + '20' }, entryStyle]}>
+    <Animated.View style={[styles.timeWidget, { backgroundColor: colors.surface, borderColor: colors.surfaceBorder }, entryStyle]}>
       <View style={styles.timeTop}>
-        <Timer size={16} color={urgencyColor} />
-        <Text style={[styles.timeLabel, { color: urgencyColor }]}>TIME LEFT</Text>
+        <Timer size={14} color={colors.textSecondary} />
+        <Text style={[styles.timeLabel, { color: colors.textSecondary }]}>TIME LEFT</Text>
       </View>
       <View style={styles.timeRow}>
-        <Text style={[styles.timeValue, { color: urgencyColor }]}>{hoursLeft}</Text>
-        <Text style={[styles.timeUnit, { color: urgencyColor }]}>h</Text>
-        <Text style={[styles.timeValue, { color: urgencyColor }]}>{minutesLeft}</Text>
-        <Text style={[styles.timeUnit, { color: urgencyColor }]}>m</Text>
+        <Text style={[styles.timeValue, { color: colors.text }]}>{hoursLeft}</Text>
+        <Text style={[styles.timeUnit, { color: colors.textMuted }]}>h</Text>
+        <Text style={[styles.timeValue, { color: colors.text }]}>{minutesLeft}</Text>
+        <Text style={[styles.timeUnit, { color: colors.textMuted }]}>m</Text>
       </View>
       {pendingCount > 0 && (
         <Text style={[styles.timeMeta, { color: colors.textMuted }]}>
-          {pendingCount} tasks · ~{totalMinutes}min left
+          {pendingCount} tasks · ~{totalMinutes}min
         </Text>
       )}
     </Animated.View>
@@ -121,25 +115,17 @@ function NextUpWidget({ task }: { task: Task | null }) {
 
   if (!task) {
     return (
-      <Animated.View style={[styles.nextWidget, styles.nextWidgetEmpty, { backgroundColor: colors.toxicDim, borderColor: colors.toxic + '20' }, entryStyle]}>
-        <Trophy size={20} color={colors.toxic} />
-        <Text style={[styles.nextEmptyText, { color: colors.toxic }]}>All clear. For now.</Text>
+      <Animated.View style={[styles.nextWidget, styles.nextWidgetEmpty, { backgroundColor: colors.surface, borderColor: colors.surfaceBorder }, entryStyle]}>
+        <Trophy size={18} color={colors.textSecondary} />
+        <Text style={[styles.nextEmptyText, { color: colors.textSecondary }]}>All clear. For now.</Text>
       </Animated.View>
     );
   }
 
-  const priorityColors: Record<string, string> = {
-    critical: colors.danger,
-    high: '#FF6B00',
-    medium: colors.warning,
-    low: colors.textMuted,
-  };
-  const pColor = priorityColors[task.priority] ?? colors.textMuted;
-
   return (
     <Animated.View style={[styles.nextWidget, { backgroundColor: colors.surface, borderColor: colors.surfaceBorder }, entryStyle]}>
       <View style={styles.nextTop}>
-        <View style={[styles.nextPriorityDot, { backgroundColor: pColor }]} />
+        <View style={[styles.nextPriorityDot, { backgroundColor: colors.textMuted }]} />
         <Text style={[styles.nextLabel, { color: colors.textMuted }]}>NEXT UP</Text>
         <ArrowRight size={12} color={colors.textMuted} />
       </View>
@@ -151,7 +137,7 @@ function NextUpWidget({ task }: { task: Task | null }) {
       </View>
       {task.subtasks.length > 0 && (
         <Text style={[styles.nextSubtasks, { color: colors.textMuted }]}>
-          {task.subtasks.filter(s => s.completed).length}/{task.subtasks.length} subtasks done
+          {task.subtasks.filter(s => s.completed).length}/{task.subtasks.length} subtasks
         </Text>
       )}
     </Animated.View>
@@ -171,19 +157,19 @@ function QuickStatsRow({ tasks, todayStats }: { tasks: Task[]; todayStats: DaySt
   return (
     <Animated.View style={[styles.statsRow, { backgroundColor: colors.surface, borderColor: colors.surfaceBorder }, entryStyle]}>
       <View style={styles.statPill}>
-        <Zap size={13} color={colors.toxic} fill={colors.toxic} />
+        <Zap size={13} color={colors.accent} fill={colors.accent} />
         <Text style={[styles.statPillValue, { color: colors.text }]}>{todayStats.completedTasks}</Text>
         <Text style={[styles.statPillLabel, { color: colors.textMuted }]}>done</Text>
       </View>
       <View style={[styles.statPillDivider, { backgroundColor: colors.surfaceBorder }]} />
       <View style={styles.statPill}>
-        <Target size={13} color={colors.warning} />
+        <Target size={13} color={colors.textSecondary} />
         <Text style={[styles.statPillValue, { color: colors.text }]}>{todayStats.totalTasks - todayStats.completedTasks}</Text>
         <Text style={[styles.statPillLabel, { color: colors.textMuted }]}>left</Text>
       </View>
       <View style={[styles.statPillDivider, { backgroundColor: colors.surfaceBorder }]} />
       <View style={styles.statPill}>
-        <Clock size={13} color="#06B6D4" />
+        <Clock size={13} color={colors.textSecondary} />
         <Text style={[styles.statPillValue, { color: colors.text }]}>{focusMinutes}m</Text>
         <Text style={[styles.statPillLabel, { color: colors.textMuted }]}>focused</Text>
       </View>
@@ -191,8 +177,8 @@ function QuickStatsRow({ tasks, todayStats }: { tasks: Task[]; todayStats: DaySt
         <>
           <View style={[styles.statPillDivider, { backgroundColor: colors.surfaceBorder }]} />
           <View style={styles.statPill}>
-            <Skull size={13} color={colors.danger} />
-            <Text style={[styles.statPillValue, { color: colors.danger }]}>{criticalPending}</Text>
+            <Skull size={13} color={colors.textSecondary} />
+            <Text style={[styles.statPillValue, { color: colors.text }]}>{criticalPending}</Text>
             <Text style={[styles.statPillLabel, { color: colors.textMuted }]}>urgent</Text>
           </View>
         </>
@@ -224,169 +210,36 @@ export default function DashboardWidgets({ tasks, todayStats, streak }: Dashboar
 }
 
 const styles = StyleSheet.create({
-  container: {
-    gap: 10,
-    marginBottom: 8,
-  },
-  widgetRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  streakWidget: {
-    flex: 1,
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-  },
-  streakTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
-  },
-  streakCount: {
-    fontSize: 32,
-    fontWeight: '900' as const,
-    letterSpacing: -1,
-  },
-  streakLabel: {
-    fontSize: 12,
-    fontWeight: '600' as const,
-    marginBottom: 10,
-  },
-  streakBar: {
-    height: 4,
-    borderRadius: 2,
-    overflow: 'hidden',
-    marginBottom: 6,
-  },
-  streakBarFill: {
-    height: '100%',
-    borderRadius: 2,
-  },
-  streakGoal: {
-    fontSize: 10,
-    fontWeight: '500' as const,
-  },
-  timeWidget: {
-    flex: 1,
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-  },
-  timeTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 8,
-  },
-  timeLabel: {
-    fontSize: 10,
-    fontWeight: '700' as const,
-    letterSpacing: 1,
-  },
-  timeRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 2,
-    marginBottom: 6,
-  },
-  timeValue: {
-    fontSize: 28,
-    fontWeight: '900' as const,
-    letterSpacing: -1,
-  },
-  timeUnit: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-    marginRight: 4,
-    opacity: 0.7,
-  },
-  timeMeta: {
-    fontSize: 10,
-    fontWeight: '500' as const,
-  },
-  nextWidget: {
-    borderRadius: 16,
-    padding: 14,
-    borderWidth: 1,
-  },
-  nextWidgetEmpty: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  nextTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 8,
-  },
-  nextPriorityDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  nextLabel: {
-    flex: 1,
-    fontSize: 10,
-    fontWeight: '700' as const,
-    letterSpacing: 1,
-  },
-  nextTitle: {
-    fontSize: 16,
-    fontWeight: '700' as const,
-    lineHeight: 22,
-    marginBottom: 6,
-  },
-  nextMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  nextTime: {
-    fontSize: 12,
-    fontWeight: '500' as const,
-  },
-  nextDuration: {
-    fontSize: 12,
-    fontWeight: '500' as const,
-  },
-  nextSubtasks: {
-    fontSize: 11,
-    fontWeight: '500' as const,
-    marginTop: 6,
-  },
-  nextEmptyText: {
-    fontSize: 14,
-    fontWeight: '700' as const,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderWidth: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  statPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-  },
-  statPillDivider: {
-    width: 1,
-    height: 16,
-    paddingHorizontal: 0,
-  },
-  statPillValue: {
-    fontSize: 14,
-    fontWeight: '800' as const,
-  },
-  statPillLabel: {
-    fontSize: 11,
-    fontWeight: '500' as const,
-  },
+  container: { gap: 10, marginBottom: 8 },
+  widgetRow: { flexDirection: 'row', gap: 10 },
+  streakWidget: { flex: 1, borderRadius: 14, padding: 14, borderWidth: 1 },
+  streakTop: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  streakCount: { fontSize: 28, fontWeight: '900' as const, letterSpacing: -1 },
+  streakLabel: { fontSize: 11, fontWeight: '600' as const, marginBottom: 10 },
+  streakBar: { height: 3, borderRadius: 2, overflow: 'hidden', marginBottom: 6 },
+  streakBarFill: { height: '100%', borderRadius: 2 },
+  streakGoal: { fontSize: 10, fontWeight: '500' as const },
+  timeWidget: { flex: 1, borderRadius: 14, padding: 14, borderWidth: 1 },
+  timeTop: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  timeLabel: { fontSize: 10, fontWeight: '700' as const, letterSpacing: 1 },
+  timeRow: { flexDirection: 'row', alignItems: 'baseline', gap: 2, marginBottom: 6 },
+  timeValue: { fontSize: 26, fontWeight: '900' as const, letterSpacing: -1 },
+  timeUnit: { fontSize: 13, fontWeight: '600' as const, marginRight: 4 },
+  timeMeta: { fontSize: 10, fontWeight: '500' as const },
+  nextWidget: { borderRadius: 14, padding: 14, borderWidth: 1 },
+  nextWidgetEmpty: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  nextTop: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  nextPriorityDot: { width: 6, height: 6, borderRadius: 3 },
+  nextLabel: { flex: 1, fontSize: 10, fontWeight: '700' as const, letterSpacing: 1 },
+  nextTitle: { fontSize: 15, fontWeight: '700' as const, lineHeight: 20, marginBottom: 6 },
+  nextMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  nextTime: { fontSize: 11, fontWeight: '500' as const },
+  nextDuration: { fontSize: 11, fontWeight: '500' as const },
+  nextSubtasks: { fontSize: 11, fontWeight: '500' as const, marginTop: 6 },
+  nextEmptyText: { fontSize: 13, fontWeight: '700' as const },
+  statsRow: { flexDirection: 'row', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 8, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
+  statPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8 },
+  statPillDivider: { width: 1, height: 16 },
+  statPillValue: { fontSize: 14, fontWeight: '800' as const },
+  statPillLabel: { fontSize: 11, fontWeight: '500' as const },
 });

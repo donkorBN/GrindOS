@@ -43,11 +43,7 @@ export default function ProgressRing({
     };
   }, [progress, circumference, animatedValue]);
 
-  const progressColor = progress >= 100
-    ? colors.toxic
-    : progress >= 50
-      ? colors.warning
-      : colors.danger;
+  const progressColor = colors.accent;
 
   return (
     <View style={[styles.container, { width: size, height: size }]}>

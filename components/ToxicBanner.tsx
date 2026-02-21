@@ -27,11 +27,11 @@ export default function ToxicBanner({ message }: ToxicBannerProps) {
     <Animated.View
       style={[
         styles.banner,
-        { backgroundColor: colors.toxicDim, borderColor: colors.toxic + '25', opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+        { backgroundColor: colors.surface, borderColor: colors.surfaceBorder, opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
       ]}
     >
-      <Zap size={16} color={colors.toxic} fill={colors.toxic} />
-      <Text style={[styles.text, { color: colors.toxic }]} numberOfLines={3}>
+      <Zap size={14} color={colors.textSecondary} />
+      <Text style={[styles.text, { color: colors.textSecondary }]} numberOfLines={3}>
         {message}
       </Text>
     </Animated.View>
@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: 13,
-    fontWeight: '600' as const,
+    fontWeight: '500' as const,
     flex: 1,
     lineHeight: 19,
     letterSpacing: 0.2,
