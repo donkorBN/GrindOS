@@ -13,11 +13,12 @@ import {
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/providers/AuthProvider';
 
-const ACCENT = '#00E5A0';
-const BG = '#08090A';
-const SURFACE = '#101114';
-const BORDER = '#22262C';
-const ERR = '#E04050';
+const BG = '#1A1C20';
+const SURFACE = '#252830';
+const ACCENT = '#4A90FF';
+const TEXT = '#FFFFFF';
+const DIM = '#555860';
+const ERR = '#FF4D5A';
 
 export default function SignupScreen() {
     const router = useRouter();
@@ -44,91 +45,31 @@ export default function SignupScreen() {
             await signUp(name.trim(), email.trim(), password);
         } catch (e: any) {
             const msg = e?.message || '';
-            if (msg.includes('email')) {
-                setError('This email is already in use.');
-            } else if (msg.includes('password')) {
-                setError('Password too weak. Use at least 8 characters.');
-            } else {
-                setError('Something went wrong. Try again.');
-            }
+            if (msg.includes('email')) setError('Email already in use.');
+            else if (msg.includes('password')) setError('Password too weak.');
+            else setError('Something went wrong.');
         } finally {
             setLoading(false);
         }
     }, [name, email, password, signUp]);
 
     return (
-        <KeyboardAvoidingView
-            style={styles.root}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-            <ScrollView
-                contentContainerStyle={styles.scroll}
-                keyboardShouldPersistTaps="handled"
-            >
+        <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
                 <View style={styles.header}>
-                    <Text style={styles.icon}>⚡</Text>
+                    <Text style={styles.logo}>⚡</Text>
                     <Text style={styles.title}>Create Account</Text>
-                    <Text style={styles.subtitle}>Your goals won't chase themselves.</Text>
                 </View>
 
                 <View style={styles.form}>
-                    <View style={styles.fieldGroup}>
-                        <Text style={styles.label}>Your Name</Text>
-                        <TextInput
-                            style={styles.input}
-                            value={name}
-                            onChangeText={setName}
-                            placeholder="What should we call you?"
-                            placeholderTextColor="#3E424A"
-                            autoCapitalize="words"
-                            autoComplete="name"
-                        />
-                    </View>
+                    <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Name" placeholderTextColor={DIM} autoCapitalize="words" autoComplete="name" />
+                    <TextInput style={styles.input} value={email} onChangeText={setEmail} placeholder="Email" placeholderTextColor={DIM} keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
+                    <TextInput style={styles.input} value={password} onChangeText={setPassword} placeholder="Password (min 8 chars)" placeholderTextColor={DIM} secureTextEntry autoComplete="new-password" />
 
-                    <View style={styles.fieldGroup}>
-                        <Text style={styles.label}>Email</Text>
-                        <TextInput
-                            style={styles.input}
-                            value={email}
-                            onChangeText={setEmail}
-                            placeholder="you@example.com"
-                            placeholderTextColor="#3E424A"
-                            keyboardType="email-address"
-                            autoCapitalize="none"
-                            autoComplete="email"
-                        />
-                    </View>
+                    {error ? <Text style={styles.error}>⚠ {error}</Text> : null}
 
-                    <View style={styles.fieldGroup}>
-                        <Text style={styles.label}>Password</Text>
-                        <TextInput
-                            style={styles.input}
-                            value={password}
-                            onChangeText={setPassword}
-                            placeholder="Min. 8 characters"
-                            placeholderTextColor="#3E424A"
-                            secureTextEntry
-                            autoComplete="new-password"
-                        />
-                    </View>
-
-                    {error ? (
-                        <View style={styles.errorBox}>
-                            <Text style={styles.errorText}>⚠ {error}</Text>
-                        </View>
-                    ) : null}
-
-                    <TouchableOpacity
-                        style={[styles.primaryBtn, loading && styles.primaryBtnDisabled]}
-                        onPress={handleSignUp}
-                        activeOpacity={0.8}
-                        disabled={loading}
-                    >
-                        {loading ? (
-                            <ActivityIndicator color={BG} />
-                        ) : (
-                            <Text style={styles.primaryBtnText}>Create Account</Text>
-                        )}
+                    <TouchableOpacity style={styles.btn} onPress={handleSignUp} disabled={loading} activeOpacity={0.8}>
+                        {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.btnText}>Create Account</Text>}
                     </TouchableOpacity>
                 </View>
 
@@ -144,104 +85,17 @@ export default function SignupScreen() {
 }
 
 const styles = StyleSheet.create({
-    root: {
-        flex: 1,
-        backgroundColor: BG,
-    },
-    scroll: {
-        flexGrow: 1,
-        justifyContent: 'center',
-        paddingHorizontal: 28,
-        paddingVertical: 60,
-    },
-    header: {
-        alignItems: 'center',
-        marginBottom: 44,
-    },
-    icon: {
-        fontSize: 48,
-        marginBottom: 12,
-    },
-    title: {
-        fontSize: 28,
-        fontWeight: '800',
-        color: '#E8E8EC',
-        letterSpacing: -0.5,
-        marginBottom: 8,
-    },
-    subtitle: {
-        fontSize: 14,
-        color: '#3E424A',
-        textAlign: 'center',
-    },
-    form: {
-        gap: 20,
-        marginBottom: 32,
-    },
-    fieldGroup: {
-        gap: 8,
-    },
-    label: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: '#6C7080',
-        letterSpacing: 2,
-        textTransform: 'uppercase',
-    },
-    input: {
-        backgroundColor: SURFACE,
-        borderWidth: 1,
-        borderColor: BORDER,
-        borderRadius: 10,
-        paddingHorizontal: 16,
-        paddingVertical: 14,
-        fontSize: 16,
-        color: '#E8E8EC',
-    },
-    errorBox: {
-        backgroundColor: '#1F0A0E',
-        borderWidth: 1,
-        borderColor: ERR,
-        borderRadius: 10,
-        padding: 12,
-    },
-    errorText: {
-        color: ERR,
-        fontSize: 13,
-    },
-    primaryBtn: {
-        backgroundColor: ACCENT,
-        borderRadius: 10,
-        paddingVertical: 16,
-        alignItems: 'center',
-        marginTop: 4,
-        shadowColor: ACCENT,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 12,
-        elevation: 6,
-    },
-    primaryBtnDisabled: {
-        opacity: 0.6,
-    },
-    primaryBtnText: {
-        color: BG,
-        fontSize: 16,
-        fontWeight: '800',
-        letterSpacing: 1,
-    },
-    footer: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    footerText: {
-        color: '#3E424A',
-        fontSize: 14,
-    },
-    footerLink: {
-        color: ACCENT,
-        fontSize: 14,
-        fontWeight: '700',
-    },
+    root: { flex: 1, backgroundColor: BG },
+    scroll: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 28, paddingVertical: 60 },
+    header: { alignItems: 'center', marginBottom: 36 },
+    logo: { fontSize: 48, marginBottom: 12 },
+    title: { fontSize: 28, fontWeight: '800', color: TEXT },
+    form: { gap: 14, marginBottom: 28 },
+    input: { backgroundColor: SURFACE, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: TEXT },
+    error: { color: ERR, fontSize: 13 },
+    btn: { backgroundColor: ACCENT, borderRadius: 28, paddingVertical: 16, alignItems: 'center', shadowColor: ACCENT, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 6 },
+    btnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
+    footer: { flexDirection: 'row', justifyContent: 'center' },
+    footerText: { color: DIM, fontSize: 14 },
+    footerLink: { color: ACCENT, fontSize: 14, fontWeight: '700' },
 });

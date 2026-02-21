@@ -9,39 +9,38 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Plus, Trash2, Zap } from 'lucide-react-native';
+import { Plus, Trash2, ChevronRight } from 'lucide-react-native';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { useAuth } from '@/providers/AuthProvider';
 import { useTasks } from '@/providers/TaskProvider';
 import { getGreeting } from '@/utils/dateUtils';
 import {
   getRandomMessage,
-  getTimeAwareMessage,
   WAKE_UP_MESSAGES,
   EMPTY_DAY_MESSAGES,
 } from '@/constants/toxicMessages';
 import { TaskCategory } from '@/types/task';
+import { CATEGORIES, CATEGORY_KEYS } from '@/constants/categories';
 import VoiceInput from '@/components/VoiceInput';
 import TaskCard from '@/components/TaskCard';
 import ToxicBanner from '@/components/ToxicBanner';
 import AddTaskModal from '@/components/AddTaskModal';
 import EditTaskModal from '@/components/EditTaskModal';
-import ProgressRing from '@/components/ProgressRing';
-import CategoryFilter from '@/components/CategoryFilter';
 import DailyRecap from '@/components/DailyRecap';
-import DashboardWidgets from '@/components/DashboardWidgets';
 import CardSwap from '@/components/CardSwap';
 import { Task } from '@/types/task';
 
 const TIP_CARDS = [
-  { icon: '🎯', title: 'Speak Your Goals', body: 'Tap the mic and tell GrindOS what you need to get done today. AI will build your battle plan.' },
-  { icon: '⚡', title: 'Subtask Mastery', body: 'Tap a task to expand it. Mark subtasks as you crush them one by one.' },
-  { icon: '🔥', title: 'Streak Power', body: 'Complete tasks every day to build your streak. Break the chain and you start over.' },
-  { icon: '🧠', title: 'Daily Recap', body: 'At the end of the day, get an AI-generated roast of your performance. No mercy.' },
+  { icon: '🎯', title: 'Speak Your Goals', body: 'Tap the mic and tell GrindOS what you need to get done today.' },
+  { icon: '⚡', title: 'Subtask Mastery', body: 'Tap a task to expand it. Mark subtasks as you crush them.' },
+  { icon: '🔥', title: 'Streak Power', body: 'Complete tasks daily to build your streak.' },
+  { icon: '🧠', title: 'Daily Recap', body: 'Get an AI-generated review of your performance.' },
 ];
 
 export default function TodayScreen() {
   const insets = useSafeAreaInsets();
   const colors = useThemeColors();
+  const { user } = useAuth();
   const {
     tasks,
     lastMessage,
@@ -77,9 +76,7 @@ export default function TodayScreen() {
 
   const sortedTasks = useMemo(() => {
     let filtered = [...tasks];
-    if (categoryFilter) {
-      filtered = filtered.filter(t => t.category === categoryFilter);
-    }
+    if (categoryFilter) filtered = filtered.filter(t => t.category === categoryFilter);
     return filtered.sort((a, b) => {
       if (a.completed !== b.completed) return a.completed ? 1 : -1;
       return a.order - b.order;
@@ -87,7 +84,6 @@ export default function TodayScreen() {
   }, [tasks, categoryFilter]);
 
   const handleTranscript = useCallback((text: string) => {
-    console.log('[TodayScreen] Transcript received:', text);
     generatePlan(text);
   }, [generatePlan]);
 
@@ -98,10 +94,15 @@ export default function TodayScreen() {
 
   const pendingTasks = useMemo(() => sortedTasks.filter(t => !t.completed), [sortedTasks]);
   const completedTasks = useMemo(() => sortedTasks.filter(t => t.completed), [sortedTasks]);
+  const userName = user?.name?.split(' ')[0] || 'Warrior';
 
   const handleGenerateRecap = useCallback(() => {
     generateRecap(tasks);
   }, [generateRecap, tasks]);
+
+  // Active categories for grid
+  const activeCategories = useMemo(() =>
+    CATEGORY_KEYS.filter(key => categoryStats[key]?.total > 0), [categoryStats]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: colors.background }]}>
@@ -113,26 +114,20 @@ export default function TodayScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={colors.toxic}
+            tintColor={colors.accent}
           />
         }
       >
+        {/* ── Header with greeting ──────────────────────────── */}
         <View style={styles.header}>
           <View>
-            <Text style={[styles.greeting, { color: colors.textMuted }]}>{greeting}</Text>
-            <Text style={[styles.title, { color: colors.text }]}>Today's Battle Plan</Text>
+            <Text style={[styles.headerLabel, { color: colors.textSecondary }]}>Home</Text>
+            <Text style={[styles.greeting, { color: colors.text }]}>Hello</Text>
+            <Text style={[styles.userName, { color: colors.text }]}>{userName}</Text>
           </View>
-          {tasks.length > 0 && (
-            <ProgressRing
-              progress={todayStats.completionRate}
-              size={60}
-              strokeWidth={5}
-            />
-          )}
         </View>
 
-        <ToxicBanner message={bannerMessage} />
-
+        {/* ── Voice / text input ────────────────────────────── */}
         <VoiceInput
           onTranscript={handleTranscript}
           isProcessing={isGenerating}
@@ -143,47 +138,108 @@ export default function TodayScreen() {
         )}
 
         {isGenerating && (
-          <View style={[styles.generatingContainer, { backgroundColor: colors.surface, borderColor: colors.surfaceBorder }]}>
-            <ActivityIndicator size="small" color={colors.toxic} />
+          <View style={[styles.generatingCard, { backgroundColor: colors.surface }]}>
+            <ActivityIndicator size="small" color={colors.accent} />
             <Text style={[styles.generatingText, { color: colors.textSecondary }]}>
-              Building your plan... No excuses incoming.
+              Building your plan...
             </Text>
           </View>
         )}
 
+        {/* ── Daily progress card ──────────────────────────── */}
         {tasks.length > 0 && (
-          <>
-            <DashboardWidgets
-              tasks={tasks}
-              todayStats={todayStats}
-              streak={streak}
-            />
-
-            <CategoryFilter
-              selected={categoryFilter}
-              onSelect={setCategoryFilter}
-              counts={categoryStats}
-            />
-
-            <View style={styles.sectionHeader}>
-              <View style={styles.sectionLeft}>
-                <Zap size={16} color={colors.toxic} fill={colors.toxic} />
-                <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
-                  {pendingTasks.length > 0 ? `${pendingTasks.length} TO CRUSH` : 'ALL CRUSHED'}
+          <View style={[styles.progressCard, { backgroundColor: colors.surface }]}>
+            <View style={styles.progressHeader}>
+              <View>
+                <Text style={[styles.progressTitle, { color: colors.text }]}>Daily progress</Text>
+                <Text style={[styles.progressSub, { color: colors.textSecondary }]}>
+                  {todayStats.completedTasks}/{todayStats.totalTasks} tasks completed
                 </Text>
               </View>
-              <View style={styles.sectionActions}>
+              {streak > 0 && (
+                <View style={[styles.streakBadge, { backgroundColor: colors.accent + '20' }]}>
+                  <Text style={[styles.streakText, { color: colors.accent }]}>🔥 {streak}</Text>
+                </View>
+              )}
+            </View>
+            <Text style={[styles.progressPercent, { color: colors.text }]}>
+              {Math.round(todayStats.completionRate)}%
+            </Text>
+            <View style={[styles.progressBarBg, { backgroundColor: colors.surfaceLight }]}>
+              <View style={[
+                styles.progressBarFill,
+                { backgroundColor: colors.accent, width: `${todayStats.completionRate}%` },
+              ]} />
+            </View>
+          </View>
+        )}
+
+        {/* ── Toxic banner ─────────────────────────────────── */}
+        <ToxicBanner message={bannerMessage} />
+
+        {/* ── Category grid ────────────────────────────────── */}
+        {activeCategories.length > 0 && (
+          <>
+            <Text style={[styles.sectionLabel, { color: colors.text }]}>Categories</Text>
+            <View style={styles.categoryGrid}>
+              {activeCategories.slice(0, 4).map((key) => {
+                const cat = CATEGORIES[key];
+                const stats = categoryStats[key] || { total: 0, completed: 0 };
+                const isSelected = categoryFilter === key;
+                return (
+                  <TouchableOpacity
+                    key={key}
+                    style={[
+                      styles.categoryCard,
+                      { backgroundColor: colors.surface },
+                      isSelected && { borderColor: cat.color, borderWidth: 1 },
+                    ]}
+                    onPress={() => setCategoryFilter(isSelected ? null : key)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.catIcon, { backgroundColor: cat.color }]}>
+                      <Text style={styles.catIconText}>{cat.emoji}</Text>
+                    </View>
+                    <Text style={[styles.catCount, { color: colors.textSecondary }]}>
+                      {stats.total - stats.completed} active
+                    </Text>
+                    <Text style={[styles.catLabel, { color: colors.text }]}>{cat.label}</Text>
+                    <View style={[styles.catProgressBg, { backgroundColor: colors.surfaceLight }]}>
+                      <View style={[
+                        styles.catProgressFill,
+                        {
+                          backgroundColor: cat.color,
+                          width: stats.total > 0 ? `${(stats.completed / stats.total) * 100}%` : '0%',
+                        },
+                      ]} />
+                    </View>
+                    <Text style={[styles.catRatio, { color: colors.textMuted }]}>
+                      {stats.completed}/{stats.total}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </>
+        )}
+
+        {/* ── Task list ────────────────────────────────────── */}
+        {tasks.length > 0 && (
+          <>
+            <View style={styles.taskHeader}>
+              <Text style={[styles.sectionLabel, { color: colors.text }]}>Tasks</Text>
+              <View style={styles.taskActions}>
                 <TouchableOpacity
-                  style={[styles.iconBtn, { backgroundColor: colors.surface, borderColor: colors.surfaceBorder }]}
+                  style={[styles.addBtn, { backgroundColor: colors.accent }]}
                   onPress={() => setShowAddModal(true)}
                 >
-                  <Plus size={18} color={colors.toxic} />
+                  <Plus size={16} color="#FFF" />
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.iconBtn, { backgroundColor: colors.surface, borderColor: colors.surfaceBorder }]}
+                  style={[styles.clearBtn, { backgroundColor: colors.surface }]}
                   onPress={clearDay}
                 >
-                  <Trash2 size={16} color={colors.textMuted} />
+                  <Trash2 size={14} color={colors.textMuted} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -201,12 +257,12 @@ export default function TodayScreen() {
 
             {completedTasks.length > 0 && (
               <>
-                <View style={styles.completedHeader}>
-                  <View style={[styles.completedLine, { backgroundColor: colors.surfaceBorder }]} />
-                  <Text style={[styles.completedLabel, { color: colors.textMuted }]}>
+                <View style={styles.completedDivider}>
+                  <View style={[styles.dividerLine, { backgroundColor: colors.surfaceBorder }]} />
+                  <Text style={[styles.dividerLabel, { color: colors.textMuted }]}>
                     DONE ({completedTasks.length})
                   </Text>
-                  <View style={[styles.completedLine, { backgroundColor: colors.surfaceBorder }]} />
+                  <View style={[styles.dividerLine, { backgroundColor: colors.surfaceBorder }]} />
                 </View>
                 {completedTasks.map((task) => (
                   <TaskCard
@@ -232,35 +288,26 @@ export default function TodayScreen() {
           </>
         )}
 
+        {/* ── Empty state ──────────────────────────────────── */}
         {tasks.length === 0 && !isGenerating && (
           <View style={styles.emptyState}>
             <Text style={styles.emptyEmoji}>💀</Text>
             <Text style={[styles.emptyTitle, { color: colors.text }]}>Nothing planned.</Text>
             <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>
-              Hit the mic and tell me what you're doing today.{'\n'}Or type it. I don't care. Just do something.
+              Hit the mic or type your tasks to get started.
             </Text>
             <TouchableOpacity
-              style={[styles.manualAddBtn, { borderColor: colors.toxic }]}
+              style={[styles.manualAddBtn, { borderColor: colors.accent }]}
               onPress={() => setShowAddModal(true)}
             >
-              <Plus size={16} color={colors.toxic} />
-              <Text style={[styles.manualAddText, { color: colors.toxic }]}>Add task manually</Text>
+              <Plus size={16} color={colors.accent} />
+              <Text style={[styles.manualAddText, { color: colors.accent }]}>Add task manually</Text>
             </TouchableOpacity>
           </View>
         )}
 
         <View style={{ height: 30 }} />
       </ScrollView>
-
-      {tasks.length > 0 && (
-        <TouchableOpacity
-          style={[styles.fab, { bottom: 20 + insets.bottom, backgroundColor: colors.toxic, shadowColor: colors.toxic }]}
-          onPress={() => setShowAddModal(true)}
-          activeOpacity={0.8}
-        >
-          <Plus size={24} color={colors.background} />
-        </TouchableOpacity>
-      )}
 
       <AddTaskModal
         visible={showAddModal}
@@ -280,112 +327,112 @@ export default function TodayScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  container: { flex: 1 },
+  scrollView: { flex: 1 },
+  scrollContent: { paddingHorizontal: 20, paddingTop: 10 },
+
+  // Header
+  header: { marginBottom: 20 },
+  headerLabel: { fontSize: 14, fontWeight: '500', marginBottom: 8 },
+  greeting: { fontSize: 36, fontWeight: '800', letterSpacing: -1, lineHeight: 42 },
+  userName: { fontSize: 36, fontWeight: '800', letterSpacing: -1, lineHeight: 42 },
+
+  // Progress card
+  progressCard: {
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 14,
   },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-  },
-  header: {
+  progressHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
+    alignItems: 'flex-start',
+    marginBottom: 12,
   },
-  greeting: {
-    fontSize: 14,
-    fontWeight: '500' as const,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase' as const,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '800' as const,
-    marginTop: 4,
-    letterSpacing: -0.5,
-  },
-  generatingContainer: {
+  progressTitle: { fontSize: 17, fontWeight: '700' },
+  progressSub: { fontSize: 12, marginTop: 3 },
+  streakBadge: { borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 },
+  streakText: { fontSize: 12, fontWeight: '700' },
+  progressPercent: { fontSize: 28, fontWeight: '800', marginBottom: 8 },
+  progressBarBg: { height: 6, borderRadius: 3, overflow: 'hidden' },
+  progressBarFill: { height: '100%', borderRadius: 3 },
+
+  // Generating
+  generatingCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 14,
+    marginBottom: 14,
+  },
+  generatingText: { fontSize: 13, fontWeight: '500' },
+
+  // Section labels
+  sectionLabel: { fontSize: 20, fontWeight: '700', marginBottom: 14, marginTop: 6 },
+
+  // Category grid (2x2)
+  categoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
     marginBottom: 16,
-    borderWidth: 1,
   },
-  generatingText: {
-    fontSize: 13,
-    fontWeight: '500' as const,
+  categoryCard: {
+    width: '48%' as any,
+    borderRadius: 16,
+    padding: 14,
+    flexGrow: 1,
+    flexBasis: '46%',
   },
-  sectionHeader: {
+  catIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
+  catIconText: { fontSize: 18 },
+  catCount: { fontSize: 11, marginBottom: 2 },
+  catLabel: { fontSize: 16, fontWeight: '700', marginBottom: 8 },
+  catProgressBg: { height: 4, borderRadius: 2, overflow: 'hidden', marginBottom: 4 },
+  catProgressFill: { height: '100%', borderRadius: 2 },
+  catRatio: { fontSize: 11, fontWeight: '600', alignSelf: 'flex-end' },
+
+  // Task list header
+  taskHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 14,
-    marginTop: 8,
+    marginBottom: 12,
   },
-  sectionLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: '700' as const,
-    letterSpacing: 1.5,
-  },
-  sectionActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  iconBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 1,
+  taskActions: { flexDirection: 'row', gap: 8 },
+  addBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  completedHeader: {
+  clearBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Completed divider
+  completedDivider: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     marginTop: 16,
     marginBottom: 12,
   },
-  completedLine: {
-    flex: 1,
-    height: 1,
-  },
-  completedLabel: {
-    fontSize: 11,
-    fontWeight: '600' as const,
-    letterSpacing: 1,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyEmoji: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '700' as const,
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    textAlign: 'center' as const,
-    lineHeight: 22,
-    paddingHorizontal: 20,
-  },
+  dividerLine: { flex: 1, height: 1 },
+  dividerLabel: { fontSize: 11, fontWeight: '600', letterSpacing: 1 },
+
+  // Empty state
+  emptyState: { alignItems: 'center', paddingVertical: 30 },
+  emptyEmoji: { fontSize: 48, marginBottom: 16 },
+  emptyTitle: { fontSize: 20, fontWeight: '700', marginBottom: 8 },
+  emptySubtitle: { fontSize: 14, textAlign: 'center', lineHeight: 22, paddingHorizontal: 20 },
   manualAddBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -395,23 +442,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     borderRadius: 10,
     borderWidth: 1,
-    borderStyle: 'dashed' as const,
+    borderStyle: 'dashed',
   },
-  manualAddText: {
-    fontSize: 13,
-    fontWeight: '600' as const,
-  },
-  fab: {
-    position: 'absolute' as const,
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 8,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-  },
+  manualAddText: { fontSize: 13, fontWeight: '600' },
 });

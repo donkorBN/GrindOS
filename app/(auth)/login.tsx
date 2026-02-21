@@ -13,11 +13,14 @@ import {
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/providers/AuthProvider';
 
-const ACCENT = '#00E5A0';
-const BG = '#08090A';
-const SURFACE = '#101114';
-const BORDER = '#22262C';
-const ERR = '#E04050';
+const BG = '#1A1C20';
+const SURFACE = '#252830';
+const BORDER = '#353840';
+const ACCENT = '#4A90FF';
+const TEXT = '#FFFFFF';
+const MUTED = '#9A9DAA';
+const DIM = '#555860';
+const ERR = '#FF4D5A';
 
 export default function LoginScreen() {
     const router = useRouter();
@@ -40,7 +43,7 @@ export default function LoginScreen() {
         } catch (e: any) {
             const msg = e?.message || '';
             if (msg.includes('Invalid credentials') || msg.includes('password')) {
-                setError('Invalid email or password. Try again.');
+                setError('Invalid email or password.');
             } else if (msg.includes('user')) {
                 setError('No account found. Sign up first.');
             } else {
@@ -61,57 +64,49 @@ export default function LoginScreen() {
                 keyboardShouldPersistTaps="handled"
             >
                 <View style={styles.header}>
-                    <Text style={styles.icon}>⚡</Text>
-                    <Text style={styles.title}>Welcome Back</Text>
-                    <Text style={styles.subtitle}>Sign in to continue grinding.</Text>
+                    <Text style={styles.logo}>⚡</Text>
+                    <Text style={styles.tagline}>The only productivity{'\n'}app you need</Text>
                 </View>
 
                 <View style={styles.form}>
-                    <View style={styles.fieldGroup}>
-                        <Text style={styles.label}>Email</Text>
+                    <TouchableOpacity
+                        style={styles.primaryBtn}
+                        onPress={handleLogin}
+                        activeOpacity={0.8}
+                        disabled={loading}
+                    >
+                        {loading ? (
+                            <ActivityIndicator color="#FFF" />
+                        ) : (
+                            <Text style={styles.primaryBtnText}>Sign in with Email</Text>
+                        )}
+                    </TouchableOpacity>
+
+                    <View style={styles.inputGroup}>
                         <TextInput
                             style={styles.input}
                             value={email}
                             onChangeText={setEmail}
-                            placeholder="you@example.com"
-                            placeholderTextColor="#3E424A"
+                            placeholder="Email"
+                            placeholderTextColor={DIM}
                             keyboardType="email-address"
                             autoCapitalize="none"
                             autoComplete="email"
                         />
-                    </View>
-
-                    <View style={styles.fieldGroup}>
-                        <Text style={styles.label}>Password</Text>
                         <TextInput
                             style={styles.input}
                             value={password}
                             onChangeText={setPassword}
-                            placeholder="••••••••"
-                            placeholderTextColor="#3E424A"
+                            placeholder="Password"
+                            placeholderTextColor={DIM}
                             secureTextEntry
                             autoComplete="password"
                         />
                     </View>
 
                     {error ? (
-                        <View style={styles.errorBox}>
-                            <Text style={styles.errorText}>⚠ {error}</Text>
-                        </View>
+                        <Text style={styles.errorText}>⚠ {error}</Text>
                     ) : null}
-
-                    <TouchableOpacity
-                        style={[styles.primaryBtn, loading && styles.primaryBtnDisabled]}
-                        onPress={handleLogin}
-                        activeOpacity={0.8}
-                        disabled={loading}
-                    >
-                        {loading ? (
-                            <ActivityIndicator color={BG} />
-                        ) : (
-                            <Text style={styles.primaryBtnText}>Sign In</Text>
-                        )}
-                    </TouchableOpacity>
                 </View>
 
                 <View style={styles.footer}>
@@ -126,104 +121,41 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-    root: {
-        flex: 1,
-        backgroundColor: BG,
-    },
-    scroll: {
-        flexGrow: 1,
-        justifyContent: 'center',
-        paddingHorizontal: 28,
-        paddingVertical: 60,
-    },
-    header: {
-        alignItems: 'center',
-        marginBottom: 44,
-    },
-    icon: {
-        fontSize: 48,
-        marginBottom: 12,
-    },
-    title: {
-        fontSize: 28,
+    root: { flex: 1, backgroundColor: BG },
+    scroll: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 28, paddingVertical: 60 },
+    header: { alignItems: 'center', marginBottom: 40 },
+    logo: { fontSize: 56, marginBottom: 16 },
+    tagline: {
+        fontSize: 26,
         fontWeight: '800',
-        color: '#E8E8EC',
-        letterSpacing: -0.5,
-        marginBottom: 8,
-    },
-    subtitle: {
-        fontSize: 14,
-        color: '#3E424A',
+        color: TEXT,
         textAlign: 'center',
+        lineHeight: 34,
     },
-    form: {
-        gap: 20,
-        marginBottom: 32,
+    form: { gap: 16, marginBottom: 32 },
+    primaryBtn: {
+        backgroundColor: ACCENT,
+        borderRadius: 28,
+        paddingVertical: 16,
+        alignItems: 'center',
+        shadowColor: ACCENT,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+        elevation: 6,
     },
-    fieldGroup: {
-        gap: 8,
-    },
-    label: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: '#6C7080',
-        letterSpacing: 2,
-        textTransform: 'uppercase',
-    },
+    primaryBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
+    inputGroup: { gap: 12 },
     input: {
         backgroundColor: SURFACE,
-        borderWidth: 1,
-        borderColor: BORDER,
-        borderRadius: 10,
+        borderRadius: 14,
         paddingHorizontal: 16,
         paddingVertical: 14,
         fontSize: 16,
-        color: '#E8E8EC',
+        color: TEXT,
     },
-    errorBox: {
-        backgroundColor: '#1F0A0E',
-        borderWidth: 1,
-        borderColor: ERR,
-        borderRadius: 10,
-        padding: 12,
-    },
-    errorText: {
-        color: ERR,
-        fontSize: 13,
-    },
-    primaryBtn: {
-        backgroundColor: ACCENT,
-        borderRadius: 10,
-        paddingVertical: 16,
-        alignItems: 'center',
-        marginTop: 4,
-        shadowColor: ACCENT,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 12,
-        elevation: 6,
-    },
-    primaryBtnDisabled: {
-        opacity: 0.6,
-    },
-    primaryBtnText: {
-        color: BG,
-        fontSize: 16,
-        fontWeight: '800',
-        letterSpacing: 1,
-    },
-    footer: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    footerText: {
-        color: '#3E424A',
-        fontSize: 14,
-    },
-    footerLink: {
-        color: ACCENT,
-        fontSize: 14,
-        fontWeight: '700',
-    },
+    errorText: { color: ERR, fontSize: 13 },
+    footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
+    footerText: { color: DIM, fontSize: 14 },
+    footerLink: { color: ACCENT, fontSize: 14, fontWeight: '700' },
 });

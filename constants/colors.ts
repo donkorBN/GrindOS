@@ -1,40 +1,35 @@
-// GrindOS — Game HUD palette
-// Monochromatic, dark, minimal. One accent color used sparingly.
+// GrindOS — Redesigned palette inspired by dark productivity UI
+// Blue primary, warm charcoal backgrounds, clean category colors
 
 export default {
   dark: {
-    // Backgrounds — true blacks with subtle warmth
-    background: '#08090A',
-    surface: '#101114',
-    surfaceLight: '#181B1F',
-    surfaceBorder: '#22262C',
+    background: '#1A1C20',
+    surface: '#252830',
+    surfaceLight: '#2E3138',
+    surfaceBorder: '#353840',
 
-    // Accent — a cold, muted cyan (think terminal/HUD)
-    toxic: '#00E5A0',
-    toxicDim: '#0A1F18',
-    toxicMuted: '#1A3D30',
+    // Primary — vibrant blue
+    toxic: '#4A90FF',
+    toxicDim: '#1A2540',
+    toxicMuted: '#2A3D60',
 
-    // Status — desaturated, not loud
-    danger: '#E04050',
-    dangerDim: '#1F0A0E',
-    warning: '#C8A030',
-    warningDim: '#1F1A0A',
+    // Status
+    danger: '#FF4D5A',
+    dangerDim: '#2A1215',
+    warning: '#FFB830',
+    warningDim: '#2A2210',
 
-    // Typography — high contrast but not pure white
-    text: '#E8E8EC',
-    textSecondary: '#6C7080',
-    textMuted: '#3E424A',
+    // Typography
+    text: '#FFFFFF',
+    textSecondary: '#9A9DAA',
+    textMuted: '#555860',
 
-    // Aliases
-    accent: '#00E5A0',
-    completed: '#00E5A0',
+    accent: '#4A90FF',
+    completed: '#4ADE80',
 
-    // Navigation
-    tabBar: '#0A0B0D',
-    tabBarBorder: '#181B1F',
-
-    // Subtle glow
-    cardGlow: 'rgba(0, 229, 160, 0.04)',
+    tabBar: '#1A1C20',
+    tabBarBorder: '#252830',
+    cardGlow: 'rgba(74, 144, 255, 0.06)',
   },
   light: {
     background: '#F0F1F3',
@@ -42,25 +37,24 @@ export default {
     surfaceLight: '#E8E9EB',
     surfaceBorder: '#D0D2D6',
 
-    toxic: '#00A876',
-    toxicDim: '#E0F5EE',
-    toxicMuted: '#80D4B8',
+    toxic: '#4A90FF',
+    toxicDim: '#E8F0FF',
+    toxicMuted: '#A0C4FF',
 
-    danger: '#C03040',
+    danger: '#E04050',
     dangerDim: '#FCE8EA',
-    warning: '#A08020',
+    warning: '#D9960A',
     warningDim: '#FBF4E0',
 
     text: '#16181C',
     textSecondary: '#5C6070',
     textMuted: '#9098A0',
 
-    accent: '#00A876',
-    completed: '#00A876',
+    accent: '#4A90FF',
+    completed: '#22C55E',
 
     tabBar: '#FFFFFF',
     tabBarBorder: '#D8DAE0',
-
-    cardGlow: 'rgba(0, 168, 118, 0.05)',
+    cardGlow: 'rgba(74, 144, 255, 0.05)',
   },
 };

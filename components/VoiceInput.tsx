@@ -257,7 +257,7 @@ export default function VoiceInput({ onTranscript, isProcessing }: VoiceInputPro
   const isDisabled = isProcessing || state === 'transcribing';
   const glowColor = glowAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ['rgba(0,229,160,0.06)', 'rgba(0,229,160,0.25)'],
+    outputRange: ['rgba(74,144,255,0.06)', 'rgba(74,144,255,0.25)'],
   });
 
   // ── Text input mode ──────────────────────────────────────────────────
@@ -403,7 +403,7 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#00E5A0',
+    shadowColor: '#4A90FF',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 12,

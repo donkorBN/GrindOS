@@ -9,13 +9,12 @@ import {
   Platform,
   UIManager,
 } from 'react-native';
-import { Check, Clock, Trash2, ChevronDown, ChevronUp, CheckSquare, Square } from 'lucide-react-native';
+import { Check, Clock, Trash2, ChevronRight, ChevronDown, CheckSquare, Square } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { Task } from '@/types/task';
 import { CATEGORIES } from '@/constants/categories';
 
-// Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
@@ -33,17 +32,15 @@ function TaskCard({ task, onToggle, onDelete, onEdit, onToggleSubtask }: TaskCar
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const [expanded, setExpanded] = useState(false);
 
-  const priorityColors: Record<string, string> = {
-    low: colors.textMuted,
-    medium: colors.warning,
-    high: '#C07030',
-    critical: colors.danger,
-  };
+  const cat = CATEGORIES[task.category ?? 'other'];
+  const hasSubtasks = task.subtasks && task.subtasks.length > 0;
+  const completedSubtasks = hasSubtasks ? task.subtasks.filter(s => s.completed).length : 0;
+  const totalSubtasks = hasSubtasks ? task.subtasks.length : 0;
 
   const handleToggle = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Animated.sequence([
-      Animated.timing(scaleAnim, { toValue: 0.95, duration: 80, useNativeDriver: true }),
+      Animated.timing(scaleAnim, { toValue: 0.96, duration: 80, useNativeDriver: true }),
       Animated.timing(scaleAnim, { toValue: 1, duration: 80, useNativeDriver: true }),
     ]).start();
     onToggle(task.id);
@@ -59,117 +56,113 @@ function TaskCard({ task, onToggle, onDelete, onEdit, onToggleSubtask }: TaskCar
     onToggleSubtask?.(task.id, subtaskId);
   }, [task.id, onToggleSubtask]);
 
-  const cat = CATEGORIES[task.category ?? 'other'];
-  const pColor = priorityColors[task.priority] ?? colors.textMuted;
-  const hasSubtasks = task.subtasks && task.subtasks.length > 0;
-  const completedSubtasks = hasSubtasks ? task.subtasks.filter(s => s.completed).length : 0;
-  const totalSubtasks = hasSubtasks ? task.subtasks.length : 0;
-
   return (
     <Animated.View style={[
       styles.card,
-      { backgroundColor: colors.surface, borderColor: colors.surfaceBorder, transform: [{ scale: scaleAnim }] },
-      task.completed && { opacity: 0.6 },
+      { backgroundColor: colors.surface, transform: [{ scale: scaleAnim }] },
+      task.completed && { opacity: 0.5 },
     ]}>
-      {/* ── Main row: checkbox + content + delete ─────────────────── */}
-      <View style={styles.cardRow}>
-        {/* Checkbox — only this toggles completion */}
-        <TouchableOpacity onPress={handleToggle} style={styles.checkboxHit} activeOpacity={0.6}>
-          <View style={[
-            styles.checkbox,
-            { borderColor: task.completed ? colors.toxic : pColor },
-            task.completed && { backgroundColor: colors.toxic },
-          ]}>
-            {task.completed && <Check size={12} color={colors.background} strokeWidth={3} />}
-          </View>
-        </TouchableOpacity>
+      {/* Left colored indicator */}
+      <View style={[styles.indicator, { backgroundColor: cat?.color || colors.textMuted }]} />
 
-        {/* Content area — tapping expands subtasks */}
-        <TouchableOpacity
-          style={styles.cardContent}
-          onPress={hasSubtasks ? handleExpand : undefined}
-          onLongPress={() => onEdit?.(task)}
-          activeOpacity={hasSubtasks ? 0.7 : 1}
-          disabled={!hasSubtasks}
-        >
-          <Text
-            style={[
-              styles.cardTitle,
-              { color: colors.text },
-              task.completed && { textDecorationLine: 'line-through' as const, color: colors.textMuted },
-            ]}
-            numberOfLines={expanded ? undefined : 2}
+      <View style={styles.cardBody}>
+        {/* ── Main row ─────────────────────────────────── */}
+        <View style={styles.mainRow}>
+          {/* Category icon */}
+          <View style={[styles.catIcon, { backgroundColor: cat?.color || colors.textMuted }]}>
+            <Text style={styles.catEmoji}>{cat?.emoji || '📌'}</Text>
+          </View>
+
+          {/* Content */}
+          <TouchableOpacity
+            style={styles.content}
+            onPress={hasSubtasks ? handleExpand : undefined}
+            onLongPress={() => onEdit?.(task)}
+            activeOpacity={hasSubtasks ? 0.7 : 1}
+            disabled={!hasSubtasks && !onEdit}
           >
-            {task.title}
-          </Text>
-
-          <View style={styles.cardMeta}>
-            <Text style={[styles.cardCategory, { color: colors.textMuted }]}>{cat?.emoji} {cat?.label}</Text>
-            <Clock size={10} color={colors.textMuted} />
-            <Text style={[styles.cardTime, { color: colors.textMuted }]}>{task.timeSlot}</Text>
-            <Text style={[styles.cardDuration, { color: colors.textMuted }]}>· {task.duration}min</Text>
-          </View>
-
-          {/* Subtask summary bar */}
-          {hasSubtasks && (
-            <View style={styles.subtaskSummary}>
-              {/* Progress bar */}
-              <View style={[styles.subtaskProgressBg, { backgroundColor: colors.surfaceLight }]}>
-                <View style={[
-                  styles.subtaskProgressFill,
-                  { backgroundColor: colors.toxic, width: `${(completedSubtasks / totalSubtasks) * 100}%` },
-                ]} />
-              </View>
-              <Text style={[styles.subtaskCount, { color: colors.textSecondary }]}>
-                {completedSubtasks}/{totalSubtasks}
-              </Text>
-              {expanded
-                ? <ChevronUp size={14} color={colors.textMuted} />
-                : <ChevronDown size={14} color={colors.textMuted} />
-              }
-            </View>
-          )}
-        </TouchableOpacity>
-
-        {/* Delete button */}
-        <TouchableOpacity onPress={() => onDelete(task.id)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Trash2 size={14} color={colors.textMuted} />
-        </TouchableOpacity>
-      </View>
-
-      {/* ── Expanded subtask list ─────────────────────────────────── */}
-      {expanded && hasSubtasks && (
-        <View style={[styles.subtaskList, { borderTopColor: colors.surfaceBorder }]}>
-          {task.subtasks.map((sub, index) => (
-            <TouchableOpacity
-              key={sub.id}
+            <Text
               style={[
-                styles.subtaskRow,
-                index < task.subtasks.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.surfaceBorder },
+                styles.title,
+                { color: colors.text },
+                task.completed && { textDecorationLine: 'line-through', color: colors.textMuted },
               ]}
-              onPress={() => handleSubtaskToggle(sub.id)}
-              activeOpacity={0.6}
+              numberOfLines={expanded ? undefined : 1}
             >
-              {sub.completed
-                ? <CheckSquare size={18} color={colors.toxic} />
-                : <Square size={18} color={colors.textMuted} />
-              }
-              <Text
-                style={[
-                  styles.subtaskText,
-                  { color: colors.text },
-                  sub.completed && { textDecorationLine: 'line-through' as const, color: colors.textMuted },
-                ]}
-              >
-                {sub.title}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
+              {task.title}
+            </Text>
+            <View style={styles.meta}>
+              <Clock size={10} color={colors.textMuted} />
+              <Text style={[styles.metaText, { color: colors.textMuted }]}>{task.timeSlot}</Text>
+              <Text style={[styles.metaText, { color: colors.textMuted }]}>· {task.duration}min</Text>
+            </View>
+          </TouchableOpacity>
 
-      {/* Priority strip */}
-      <View style={[styles.priorityStrip, { backgroundColor: pColor }]} />
+          {/* Right side — checkbox or chevron */}
+          <TouchableOpacity onPress={handleToggle} style={styles.checkHit}>
+            <View style={[
+              styles.checkbox,
+              task.completed
+                ? { backgroundColor: colors.completed, borderColor: colors.completed }
+                : { borderColor: colors.textMuted },
+            ]}>
+              {task.completed && <Check size={12} color="#FFF" strokeWidth={3} />}
+            </View>
+          </TouchableOpacity>
+
+          {hasSubtasks && (
+            <TouchableOpacity onPress={handleExpand} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              {expanded
+                ? <ChevronDown size={18} color={colors.textMuted} />
+                : <ChevronRight size={18} color={colors.textMuted} />
+              }
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Subtask progress */}
+        {hasSubtasks && !expanded && (
+          <View style={styles.subtaskBar}>
+            <View style={[styles.progressBg, { backgroundColor: colors.surfaceLight }]}>
+              <View style={[
+                styles.progressFill,
+                { backgroundColor: cat?.color || colors.accent, width: `${(completedSubtasks / totalSubtasks) * 100}%` },
+              ]} />
+            </View>
+            <Text style={[styles.subtaskCount, { color: colors.textMuted }]}>
+              {completedSubtasks}/{totalSubtasks}
+            </Text>
+          </View>
+        )}
+
+        {/* ── Expanded subtasks ────────────────────────── */}
+        {expanded && hasSubtasks && (
+          <View style={[styles.subtaskList, { borderTopColor: colors.surfaceBorder }]}>
+            {task.subtasks.map((sub, index) => (
+              <TouchableOpacity
+                key={sub.id}
+                style={styles.subtaskRow}
+                onPress={() => handleSubtaskToggle(sub.id)}
+                activeOpacity={0.6}
+              >
+                {sub.completed
+                  ? <CheckSquare size={16} color={colors.completed} />
+                  : <Square size={16} color={colors.textMuted} />
+                }
+                <Text
+                  style={[
+                    styles.subtaskText,
+                    { color: colors.text },
+                    sub.completed && { textDecorationLine: 'line-through', color: colors.textMuted },
+                  ]}
+                >
+                  {sub.title}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+      </View>
     </Animated.View>
   );
 }
@@ -179,90 +172,96 @@ export default React.memo(TaskCard);
 const styles = StyleSheet.create({
   card: {
     borderRadius: 14,
-    borderWidth: 1,
-    marginBottom: 10,
+    marginBottom: 8,
     overflow: 'hidden',
-  },
-  cardRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: 14,
+  },
+  indicator: {
+    width: 4,
+    borderTopLeftRadius: 14,
+    borderBottomLeftRadius: 14,
+  },
+  cardBody: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  mainRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
   },
-  checkboxHit: {
+  catIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  catEmoji: { fontSize: 16 },
+  content: {
+    flex: 1,
+  },
+  title: {
+    fontSize: 15,
+    fontWeight: '600',
+    lineHeight: 20,
+  },
+  meta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 3,
+  },
+  metaText: {
+    fontSize: 11,
+  },
+  checkHit: {
     padding: 4,
-    marginTop: -2,
-    marginLeft: -4,
   },
   checkbox: {
     width: 22,
     height: 22,
-    borderRadius: 6,
+    borderRadius: 11,
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cardContent: {
-    flex: 1,
-  },
-  cardTitle: {
-    fontSize: 15,
-    fontWeight: '600' as const,
-    lineHeight: 20,
-  },
-  cardMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 6,
-  },
-  cardCategory: {
-    fontSize: 11,
-  },
-  cardTime: {
-    fontSize: 11,
-  },
-  cardDuration: {
-    fontSize: 11,
-  },
-  subtaskSummary: {
+  subtaskBar: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     marginTop: 10,
+    marginLeft: 46,
   },
-  subtaskProgressBg: {
+  progressBg: {
     flex: 1,
-    height: 4,
+    height: 3,
     borderRadius: 2,
     overflow: 'hidden',
   },
-  subtaskProgressFill: {
+  progressFill: {
     height: '100%',
     borderRadius: 2,
   },
   subtaskCount: {
-    fontSize: 11,
-    fontWeight: '600' as const,
+    fontSize: 10,
+    fontWeight: '600',
   },
   subtaskList: {
     borderTopWidth: 1,
-    marginHorizontal: 14,
+    marginTop: 10,
+    marginLeft: 46,
     paddingTop: 4,
-    paddingBottom: 8,
   },
   subtaskRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 4,
+    paddingVertical: 8,
   },
   subtaskText: {
-    fontSize: 14,
+    fontSize: 13,
     flex: 1,
-  },
-  priorityStrip: {
-    height: 3,
   },
 });
