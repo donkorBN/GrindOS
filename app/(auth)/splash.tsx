@@ -9,13 +9,15 @@ import {
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/providers/AuthProvider';
 
-const { width, height } = Dimensions.get('window');
+const { height } = Dimensions.get('window');
+
+const ACCENT = '#00E5A0';
+const BG = '#08090A';
 
 export default function SplashScreen() {
     const router = useRouter();
     const { user, isLoading } = useAuth();
 
-    // Animations
     const logoScale = useRef(new Animated.Value(0.3)).current;
     const logoOpacity = useRef(new Animated.Value(0)).current;
     const taglineOpacity = useRef(new Animated.Value(0)).current;
@@ -23,7 +25,6 @@ export default function SplashScreen() {
     const glowOpacity = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
-        // Sequence: logo pops in → glow pulses → tagline slides up
         Animated.sequence([
             Animated.parallel([
                 Animated.spring(logoScale, {
@@ -58,7 +59,6 @@ export default function SplashScreen() {
         ]).start();
     }, []);
 
-    // Navigate after animation
     useEffect(() => {
         if (isLoading) return;
         const timer = setTimeout(() => {
@@ -73,10 +73,8 @@ export default function SplashScreen() {
 
     return (
         <View style={styles.container}>
-            {/* Background glow */}
             <Animated.View style={[styles.glow, { opacity: glowOpacity }]} />
 
-            {/* Logo area */}
             <Animated.View
                 style={[
                     styles.logoContainer,
@@ -84,11 +82,10 @@ export default function SplashScreen() {
                 ]}
             >
                 <Text style={styles.icon}>⚡</Text>
-                <Text style={styles.appName}>TOXIC</Text>
-                <Text style={styles.appNameSub}>PLANNER</Text>
+                <Text style={styles.appName}>GRIND</Text>
+                <Text style={styles.appNameSub}>OS</Text>
             </Animated.View>
 
-            {/* Tagline */}
             <Animated.View
                 style={[
                     styles.taglineContainer,
@@ -102,7 +99,6 @@ export default function SplashScreen() {
                 <View style={styles.divider} />
             </Animated.View>
 
-            {/* Bottom */}
             <Animated.Text style={[styles.version, { opacity: taglineOpacity }]}>
                 — get to work —
             </Animated.Text>
@@ -113,7 +109,7 @@ export default function SplashScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#0A0A0A',
+        backgroundColor: BG,
         alignItems: 'center',
         justifyContent: 'center',
         paddingHorizontal: 40,
@@ -123,11 +119,10 @@ const styles = StyleSheet.create({
         width: 300,
         height: 300,
         borderRadius: 150,
-        backgroundColor: '#39FF14',
+        backgroundColor: ACCENT,
         top: height / 2 - 200,
         alignSelf: 'center',
-        // React Native doesn't support CSS blur, so we simulate with opacity layers
-        opacity: 0.08,
+        opacity: 0.05,
     },
     logoContainer: {
         alignItems: 'center',
@@ -138,42 +133,43 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     appName: {
-        fontSize: 52,
+        fontSize: 56,
         fontWeight: '900',
-        color: '#39FF14',
-        letterSpacing: 12,
-        textShadowColor: 'rgba(57, 255, 20, 0.5)',
+        color: ACCENT,
+        letterSpacing: 16,
+        textShadowColor: 'rgba(0, 229, 160, 0.3)',
         textShadowOffset: { width: 0, height: 0 },
         textShadowRadius: 20,
     },
     appNameSub: {
-        fontSize: 20,
-        fontWeight: '300',
-        color: '#8A8A8A',
-        letterSpacing: 14,
-        marginTop: -6,
+        fontSize: 24,
+        fontWeight: '200',
+        color: '#6C7080',
+        letterSpacing: 20,
+        marginTop: -4,
     },
     taglineContainer: {
         alignItems: 'center',
         gap: 16,
     },
     tagline: {
-        fontSize: 16,
-        color: '#555555',
-        letterSpacing: 1,
+        fontSize: 14,
+        color: '#3E424A',
+        letterSpacing: 2,
         fontStyle: 'italic',
     },
     divider: {
-        width: 60,
+        width: 40,
         height: 1,
-        backgroundColor: '#39FF14',
-        opacity: 0.4,
+        backgroundColor: ACCENT,
+        opacity: 0.3,
     },
     version: {
         position: 'absolute',
         bottom: 60,
-        fontSize: 12,
-        color: '#333333',
-        letterSpacing: 2,
+        fontSize: 11,
+        color: '#22262C',
+        letterSpacing: 3,
+        textTransform: 'uppercase',
     },
 });

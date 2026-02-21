@@ -36,7 +36,7 @@ export default function AddTaskModal({ visible, onClose, onAdd }: AddTaskModalPr
   const PRIORITIES: Array<{ label: string; value: Task['priority']; color: string }> = [
     { label: 'Low', value: 'low', color: colors.textMuted },
     { label: 'Med', value: 'medium', color: colors.warning },
-    { label: 'High', value: 'high', color: '#FF6B35' },
+    { label: 'High', value: 'high', color: '#C07030' },
     { label: 'Critical', value: 'critical', color: colors.danger },
   ];
 

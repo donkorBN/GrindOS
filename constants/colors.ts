@@ -1,44 +1,66 @@
+// GrindOS — Game HUD palette
+// Monochromatic, dark, minimal. One accent color used sparingly.
+
 export default {
   dark: {
-    background: '#0A0A0A',
-    surface: '#141414',
-    surfaceLight: '#1E1E1E',
-    surfaceBorder: '#2A2A2A',
-    toxic: '#39FF14',
-    toxicDim: '#1A3D0F',
-    toxicMuted: '#2D6B1E',
-    danger: '#FF3131',
-    dangerDim: '#3D0F0F',
-    warning: '#FFB800',
-    warningDim: '#3D2E00',
-    text: '#FFFFFF',
-    textSecondary: '#8A8A8A',
-    textMuted: '#555555',
-    accent: '#39FF14',
-    completed: '#39FF14',
-    tabBar: '#0F0F0F',
-    tabBarBorder: '#1A1A1A',
-    cardGlow: 'rgba(57, 255, 20, 0.05)',
+    // Backgrounds — true blacks with subtle warmth
+    background: '#08090A',
+    surface: '#101114',
+    surfaceLight: '#181B1F',
+    surfaceBorder: '#22262C',
+
+    // Accent — a cold, muted cyan (think terminal/HUD)
+    toxic: '#00E5A0',
+    toxicDim: '#0A1F18',
+    toxicMuted: '#1A3D30',
+
+    // Status — desaturated, not loud
+    danger: '#E04050',
+    dangerDim: '#1F0A0E',
+    warning: '#C8A030',
+    warningDim: '#1F1A0A',
+
+    // Typography — high contrast but not pure white
+    text: '#E8E8EC',
+    textSecondary: '#6C7080',
+    textMuted: '#3E424A',
+
+    // Aliases
+    accent: '#00E5A0',
+    completed: '#00E5A0',
+
+    // Navigation
+    tabBar: '#0A0B0D',
+    tabBarBorder: '#181B1F',
+
+    // Subtle glow
+    cardGlow: 'rgba(0, 229, 160, 0.04)',
   },
   light: {
-    background: '#F5F5F7',
+    background: '#F0F1F3',
     surface: '#FFFFFF',
-    surfaceLight: '#F0F0F2',
-    surfaceBorder: '#E0E0E4',
-    toxic: '#16A34A',
-    toxicDim: '#DCFCE7',
-    toxicMuted: '#86EFAC',
-    danger: '#DC2626',
-    dangerDim: '#FEE2E2',
-    warning: '#D97706',
-    warningDim: '#FEF3C7',
-    text: '#1A1A1A',
-    textSecondary: '#6B6B6B',
-    textMuted: '#9CA3AF',
-    accent: '#16A34A',
-    completed: '#16A34A',
+    surfaceLight: '#E8E9EB',
+    surfaceBorder: '#D0D2D6',
+
+    toxic: '#00A876',
+    toxicDim: '#E0F5EE',
+    toxicMuted: '#80D4B8',
+
+    danger: '#C03040',
+    dangerDim: '#FCE8EA',
+    warning: '#A08020',
+    warningDim: '#FBF4E0',
+
+    text: '#16181C',
+    textSecondary: '#5C6070',
+    textMuted: '#9098A0',
+
+    accent: '#00A876',
+    completed: '#00A876',
+
     tabBar: '#FFFFFF',
-    tabBarBorder: '#E5E5EA',
-    cardGlow: 'rgba(22, 163, 74, 0.06)',
+    tabBarBorder: '#D8DAE0',
+
+    cardGlow: 'rgba(0, 168, 118, 0.05)',
   },
 };

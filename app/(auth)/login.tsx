@@ -13,6 +13,12 @@ import {
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/providers/AuthProvider';
 
+const ACCENT = '#00E5A0';
+const BG = '#08090A';
+const SURFACE = '#101114';
+const BORDER = '#22262C';
+const ERR = '#E04050';
+
 export default function LoginScreen() {
     const router = useRouter();
     const { signIn } = useAuth();
@@ -54,14 +60,12 @@ export default function LoginScreen() {
                 contentContainerStyle={styles.scroll}
                 keyboardShouldPersistTaps="handled"
             >
-                {/* Header */}
                 <View style={styles.header}>
                     <Text style={styles.icon}>⚡</Text>
                     <Text style={styles.title}>Welcome Back</Text>
-                    <Text style={styles.subtitle}>Sign in to stay on track — or keep slacking.</Text>
+                    <Text style={styles.subtitle}>Sign in to continue grinding.</Text>
                 </View>
 
-                {/* Form */}
                 <View style={styles.form}>
                     <View style={styles.fieldGroup}>
                         <Text style={styles.label}>Email</Text>
@@ -70,7 +74,7 @@ export default function LoginScreen() {
                             value={email}
                             onChangeText={setEmail}
                             placeholder="you@example.com"
-                            placeholderTextColor="#555"
+                            placeholderTextColor="#3E424A"
                             keyboardType="email-address"
                             autoCapitalize="none"
                             autoComplete="email"
@@ -84,7 +88,7 @@ export default function LoginScreen() {
                             value={password}
                             onChangeText={setPassword}
                             placeholder="••••••••"
-                            placeholderTextColor="#555"
+                            placeholderTextColor="#3E424A"
                             secureTextEntry
                             autoComplete="password"
                         />
@@ -103,14 +107,13 @@ export default function LoginScreen() {
                         disabled={loading}
                     >
                         {loading ? (
-                            <ActivityIndicator color="#0A0A0A" />
+                            <ActivityIndicator color={BG} />
                         ) : (
-                            <Text style={styles.primaryBtnText}>Sign In ⚡</Text>
+                            <Text style={styles.primaryBtnText}>Sign In</Text>
                         )}
                     </TouchableOpacity>
                 </View>
 
-                {/* Footer */}
                 <View style={styles.footer}>
                     <Text style={styles.footerText}>Don't have an account? </Text>
                     <TouchableOpacity onPress={() => router.push('/(auth)/signup')}>
@@ -125,7 +128,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
     root: {
         flex: 1,
-        backgroundColor: '#0A0A0A',
+        backgroundColor: BG,
     },
     scroll: {
         flexGrow: 1,
@@ -142,17 +145,16 @@ const styles = StyleSheet.create({
         marginBottom: 12,
     },
     title: {
-        fontSize: 32,
+        fontSize: 28,
         fontWeight: '800',
-        color: '#FFFFFF',
+        color: '#E8E8EC',
         letterSpacing: -0.5,
         marginBottom: 8,
     },
     subtitle: {
         fontSize: 14,
-        color: '#555',
+        color: '#3E424A',
         textAlign: 'center',
-        fontStyle: 'italic',
     },
     form: {
         gap: 20,
@@ -162,42 +164,42 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     label: {
-        fontSize: 13,
+        fontSize: 11,
         fontWeight: '700',
-        color: '#8A8A8A',
-        letterSpacing: 1,
+        color: '#6C7080',
+        letterSpacing: 2,
         textTransform: 'uppercase',
     },
     input: {
-        backgroundColor: '#141414',
+        backgroundColor: SURFACE,
         borderWidth: 1,
-        borderColor: '#2A2A2A',
-        borderRadius: 14,
+        borderColor: BORDER,
+        borderRadius: 10,
         paddingHorizontal: 16,
         paddingVertical: 14,
         fontSize: 16,
-        color: '#FFFFFF',
+        color: '#E8E8EC',
     },
     errorBox: {
-        backgroundColor: '#1A0A0A',
+        backgroundColor: '#1F0A0E',
         borderWidth: 1,
-        borderColor: '#FF3131',
+        borderColor: ERR,
         borderRadius: 10,
         padding: 12,
     },
     errorText: {
-        color: '#FF3131',
+        color: ERR,
         fontSize: 13,
     },
     primaryBtn: {
-        backgroundColor: '#39FF14',
-        borderRadius: 14,
+        backgroundColor: ACCENT,
+        borderRadius: 10,
         paddingVertical: 16,
         alignItems: 'center',
         marginTop: 4,
-        shadowColor: '#39FF14',
+        shadowColor: ACCENT,
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
+        shadowOpacity: 0.2,
         shadowRadius: 12,
         elevation: 6,
     },
@@ -205,10 +207,10 @@ const styles = StyleSheet.create({
         opacity: 0.6,
     },
     primaryBtnText: {
-        color: '#0A0A0A',
-        fontSize: 17,
+        color: BG,
+        fontSize: 16,
         fontWeight: '800',
-        letterSpacing: 0.5,
+        letterSpacing: 1,
     },
     footer: {
         flexDirection: 'row',
@@ -216,11 +218,11 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     footerText: {
-        color: '#555',
+        color: '#3E424A',
         fontSize: 14,
     },
     footerLink: {
-        color: '#39FF14',
+        color: ACCENT,
         fontSize: 14,
         fontWeight: '700',
     },

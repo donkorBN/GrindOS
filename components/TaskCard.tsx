@@ -36,7 +36,7 @@ function TaskCard({ task, onToggle, onDelete, onEdit, onToggleSubtask }: TaskCar
   const priorityColors: Record<string, string> = {
     low: colors.textMuted,
     medium: colors.warning,
-    high: '#FF6B35',
+    high: '#C07030',
     critical: colors.danger,
   };
 
