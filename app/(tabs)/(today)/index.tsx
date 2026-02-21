@@ -29,7 +29,15 @@ import ProgressRing from '@/components/ProgressRing';
 import CategoryFilter from '@/components/CategoryFilter';
 import DailyRecap from '@/components/DailyRecap';
 import DashboardWidgets from '@/components/DashboardWidgets';
+import CardSwap from '@/components/CardSwap';
 import { Task } from '@/types/task';
+
+const TIP_CARDS = [
+  { icon: '🎯', title: 'Speak Your Goals', body: 'Tap the mic and tell GrindOS what you need to get done today. AI will build your battle plan.' },
+  { icon: '⚡', title: 'Subtask Mastery', body: 'Tap a task to expand it. Mark subtasks as you crush them one by one.' },
+  { icon: '🔥', title: 'Streak Power', body: 'Complete tasks every day to build your streak. Break the chain and you start over.' },
+  { icon: '🧠', title: 'Daily Recap', body: 'At the end of the day, get an AI-generated roast of your performance. No mercy.' },
+];
 
 export default function TodayScreen() {
   const insets = useSafeAreaInsets();
@@ -129,6 +137,10 @@ export default function TodayScreen() {
           onTranscript={handleTranscript}
           isProcessing={isGenerating}
         />
+
+        {tasks.length === 0 && !isGenerating && (
+          <CardSwap cards={TIP_CARDS} delay={4500} />
+        )}
 
         {isGenerating && (
           <View style={[styles.generatingContainer, { backgroundColor: colors.surface, borderColor: colors.surfaceBorder }]}>
