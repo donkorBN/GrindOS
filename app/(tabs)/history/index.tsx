@@ -25,7 +25,6 @@ function formatDateLabel(dateStr: string): string {
 
   if (dateStr === todayKey) return 'Today';
   if (dateStr === yesterdayKey) return 'Yesterday';
-
   return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
@@ -49,33 +48,35 @@ function HistoryDayCard({
   const completed = stats?.completed ?? 0;
   const total = stats?.total ?? 0;
   const rate = stats?.rate ?? 0;
-
-  const rateColor = rate >= 100 ? colors.toxic : rate >= 50 ? colors.warning : colors.danger;
+  const pct = total > 0 ? (completed / total) * 100 : 0;
 
   return (
-    <View style={[styles.dayCard, { backgroundColor: colors.surface, borderColor: colors.surfaceBorder }]}>
-      <TouchableOpacity style={styles.dayHeader} onPress={onExpand} activeOpacity={0.7}>
-        <View style={styles.dayLeft}>
-          <View style={[styles.dayDot, { backgroundColor: rateColor }]} />
-          <View>
-            <Text style={[styles.dayLabel, { color: colors.text }]}>{formatDateLabel(dateKey)}</Text>
-            <Text style={[styles.dayMeta, { color: colors.textMuted }]}>{completed}/{total} tasks</Text>
-          </View>
+    <View style={[styles.dayCard, { backgroundColor: colors.surface }]}>
+      <TouchableOpacity style={styles.dayRow} onPress={onExpand} activeOpacity={0.7}>
+        <View style={[styles.dayIndicator, {
+          backgroundColor: pct >= 100 ? colors.completed : pct >= 50 ? colors.accent : pct > 0 ? colors.warning : colors.surfaceBorder,
+        }]} />
+
+        <View style={styles.dayContent}>
+          <Text style={[styles.dayLabel, { color: colors.text }]}>{formatDateLabel(dateKey)}</Text>
+          <Text style={[styles.dayMeta, { color: colors.textMuted }]}>{completed}/{total} tasks · {rate}%</Text>
         </View>
-        <View style={styles.dayRight}>
-          <Text style={[styles.dayRate, { color: rateColor }]}>{rate}%</Text>
-          <ChevronRight
-            size={16}
-            color={colors.textMuted}
-            style={{ transform: [{ rotate: isExpanded ? '90deg' : '0deg' }] }}
-          />
+
+        <View style={[styles.dayProgress, { backgroundColor: colors.surfaceLight }]}>
+          <View style={[styles.dayProgressFill, { width: `${pct}%`, backgroundColor: colors.accent }]} />
         </View>
+
+        <ChevronRight
+          size={16}
+          color={colors.textMuted}
+          style={{ transform: [{ rotate: isExpanded ? '90deg' : '0deg' }] }}
+        />
       </TouchableOpacity>
 
       {isExpanded && (
         <View style={[styles.dayTasks, { borderTopColor: colors.surfaceBorder }]}>
           {isLoading ? (
-            <ActivityIndicator size="small" color={colors.toxic} style={{ padding: 16 }} />
+            <ActivityIndicator size="small" color={colors.accent} style={{ padding: 16 }} />
           ) : tasks.length === 0 ? (
             <Text style={[styles.noTasks, { color: colors.textMuted }]}>No tasks recorded</Text>
           ) : (
@@ -83,19 +84,22 @@ function HistoryDayCard({
               const cat = CATEGORIES[task.category ?? 'other'];
               return (
                 <View key={task.id} style={styles.historyTask}>
-                  {task.completed ? (
-                    <CheckCircle2 size={16} color={colors.toxic} />
-                  ) : (
-                    <XCircle size={16} color={colors.danger} />
-                  )}
+                  {task.completed
+                    ? <CheckCircle2 size={16} color={colors.completed} />
+                    : <XCircle size={16} color={colors.danger} />
+                  }
                   <View style={styles.historyTaskInfo}>
-                    <Text style={[styles.historyTaskTitle, { color: colors.text }, task.completed && { textDecorationLine: 'line-through' as const, color: colors.textMuted }]}>
+                    <Text style={[
+                      styles.historyTaskTitle,
+                      { color: colors.text },
+                      task.completed && { textDecorationLine: 'line-through', color: colors.textMuted },
+                    ]}>
                       {task.title}
                     </Text>
                     <View style={styles.historyTaskMeta}>
-                      <Text style={[styles.historyTaskMetaText, { color: colors.textMuted }]}>{cat?.emoji} {cat?.label}</Text>
+                      <Text style={[styles.historyMetaText, { color: colors.textMuted }]}>{cat?.emoji} {cat?.label}</Text>
                       <Clock size={10} color={colors.textMuted} />
-                      <Text style={[styles.historyTaskMetaText, { color: colors.textMuted }]}>{task.timeSlot}</Text>
+                      <Text style={[styles.historyMetaText, { color: colors.textMuted }]}>{task.timeSlot}</Text>
                     </View>
                   </View>
                 </View>
@@ -125,10 +129,7 @@ export default function HistoryScreen() {
   }, [allStats]);
 
   const handleExpand = useCallback(async (dateKey: string) => {
-    if (expandedDay === dateKey) {
-      setExpandedDay(null);
-      return;
-    }
+    if (expandedDay === dateKey) { setExpandedDay(null); return; }
     setExpandedDay(dateKey);
     if (!loadedTasks[dateKey]) {
       setLoadingDay(dateKey);
@@ -143,9 +144,7 @@ export default function HistoryScreen() {
     }
   }, [expandedDay, loadedTasks, loadHistoryTasks]);
 
-  const sortedKeys = useMemo(() => {
-    return [...historyKeys].sort((a, b) => b.localeCompare(a));
-  }, [historyKeys]);
+  const sortedKeys = useMemo(() => [...historyKeys].sort((a, b) => b.localeCompare(a)), [historyKeys]);
 
   const totalDays = sortedKeys.length;
   const perfectDays = useMemo(() =>
@@ -153,24 +152,20 @@ export default function HistoryScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, backgroundColor: colors.background }]}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <Text style={[styles.pageTitle, { color: colors.text }]}>History</Text>
-        <Text style={[styles.subtitle, { color: colors.textMuted }]}>Your war log</Text>
 
+        {/* Summary pills */}
         <View style={styles.summaryRow}>
-          <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.surfaceBorder }]}>
+          <View style={[styles.summaryCard, { backgroundColor: colors.surface }]}>
             <Text style={[styles.summaryValue, { color: colors.text }]}>{totalDays}</Text>
-            <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>Days Tracked</Text>
+            <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>Days</Text>
           </View>
-          <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.surfaceBorder }]}>
-            <Text style={[styles.summaryValue, { color: colors.toxic }]}>{perfectDays}</Text>
-            <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>Perfect Days</Text>
+          <View style={[styles.summaryCard, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.summaryValue, { color: colors.completed }]}>{perfectDays}</Text>
+            <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>Perfect</Text>
           </View>
-          <View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.surfaceBorder }]}>
+          <View style={[styles.summaryCard, { backgroundColor: colors.surface }]}>
             <Text style={[styles.summaryValue, { color: colors.danger }]}>{totalDays - perfectDays}</Text>
             <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>Incomplete</Text>
           </View>
@@ -181,8 +176,7 @@ export default function HistoryScreen() {
             <Calendar size={40} color={colors.textMuted} />
             <Text style={[styles.emptyTitle, { color: colors.text }]}>No history yet</Text>
             <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>
-              Start planning days and your history will appear here.
-              Or keep procrastinating. Your call.
+              Start planning days and your history will show here.
             </Text>
           </View>
         ) : (
@@ -209,134 +203,35 @@ export default function HistoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-  },
-  pageTitle: {
-    fontSize: 28,
-    fontWeight: '800' as const,
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: 14,
-    marginTop: 4,
-    marginBottom: 20,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 24,
-  },
-  summaryCard: {
-    flex: 1,
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-    alignItems: 'center',
-  },
-  summaryValue: {
-    fontSize: 22,
-    fontWeight: '800' as const,
-  },
-  summaryLabel: {
-    fontSize: 10,
-    fontWeight: '600' as const,
-    marginTop: 4,
-    letterSpacing: 0.5,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 50,
-    gap: 12,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700' as const,
-  },
-  emptySubtitle: {
-    fontSize: 13,
-    textAlign: 'center' as const,
-    lineHeight: 20,
-    paddingHorizontal: 20,
-  },
-  timeline: {
-    gap: 8,
-  },
-  dayCard: {
-    borderRadius: 14,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  dayHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-  },
-  dayLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  dayDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  dayLabel: {
-    fontSize: 15,
-    fontWeight: '600' as const,
-  },
-  dayMeta: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  dayRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  dayRate: {
-    fontSize: 16,
-    fontWeight: '800' as const,
-  },
-  dayTasks: {
-    borderTopWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  noTasks: {
-    fontSize: 13,
-    textAlign: 'center' as const,
-    paddingVertical: 12,
-  },
-  historyTask: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    paddingVertical: 8,
-  },
-  historyTaskInfo: {
-    flex: 1,
-  },
-  historyTaskTitle: {
-    fontSize: 14,
-    fontWeight: '500' as const,
-  },
-  historyTaskMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 3,
-  },
-  historyTaskMetaText: {
-    fontSize: 11,
-  },
+  container: { flex: 1 },
+  scroll: { flex: 1 },
+  scrollContent: { paddingHorizontal: 20, paddingTop: 10 },
+  pageTitle: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5, marginBottom: 20 },
+
+  summaryRow: { flexDirection: 'row', gap: 10, marginBottom: 24 },
+  summaryCard: { flex: 1, borderRadius: 14, padding: 14, alignItems: 'center' },
+  summaryValue: { fontSize: 24, fontWeight: '800' },
+  summaryLabel: { fontSize: 10, fontWeight: '600', marginTop: 4, letterSpacing: 0.5 },
+
+  emptyState: { alignItems: 'center', paddingVertical: 50, gap: 12 },
+  emptyTitle: { fontSize: 18, fontWeight: '700' },
+  emptySubtitle: { fontSize: 13, textAlign: 'center', lineHeight: 20, paddingHorizontal: 20 },
+
+  timeline: { gap: 8 },
+  dayCard: { borderRadius: 14, overflow: 'hidden' },
+  dayRow: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
+  dayIndicator: { width: 4, height: 36, borderRadius: 2 },
+  dayContent: { flex: 1 },
+  dayLabel: { fontSize: 15, fontWeight: '600' },
+  dayMeta: { fontSize: 12, marginTop: 2 },
+  dayProgress: { width: 50, height: 4, borderRadius: 2, overflow: 'hidden' },
+  dayProgressFill: { height: '100%', borderRadius: 2 },
+
+  dayTasks: { borderTopWidth: 1, paddingHorizontal: 16, paddingVertical: 8 },
+  noTasks: { fontSize: 13, textAlign: 'center', paddingVertical: 12 },
+  historyTask: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 8 },
+  historyTaskInfo: { flex: 1 },
+  historyTaskTitle: { fontSize: 14, fontWeight: '500' },
+  historyTaskMeta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 },
+  historyMetaText: { fontSize: 11 },
 });
