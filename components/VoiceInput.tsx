@@ -9,7 +9,7 @@ import {
   TextInput,
   ActivityIndicator,
 } from 'react-native';
-import { Mic, MicOff, Send, Keyboard } from 'lucide-react-native';
+import { Mic, MicOff, Send, Keyboard, RotateCcw, CheckCircle2 } from 'lucide-react-native';
 import {
   useAudioRecorder,
   RecordingPresets,
@@ -22,18 +22,13 @@ const ASSEMBLYAI_API_KEY = process.env.EXPO_PUBLIC_ASSEMBLYAI_API_KEY!;
 const ASSEMBLYAI_BASE = 'https://api.assemblyai.com/v2';
 
 async function transcribeWithAssemblyAI(uri: string, mimeType: string): Promise<string> {
-  // 1. Fetch audio as blob
   const audioRes = await fetch(uri);
   const audioBlob = await audioRes.blob();
   console.log('[AssemblyAI] Audio blob size:', audioBlob.size, 'type:', mimeType);
 
-  // 2. Upload to AssemblyAI
   const uploadRes = await fetch(`${ASSEMBLYAI_BASE}/upload`, {
     method: 'POST',
-    headers: {
-      authorization: ASSEMBLYAI_API_KEY,
-      'content-type': mimeType,
-    },
+    headers: { authorization: ASSEMBLYAI_API_KEY, 'content-type': mimeType },
     body: audioBlob,
   });
   const uploadData = await uploadRes.json();
@@ -41,13 +36,9 @@ async function transcribeWithAssemblyAI(uri: string, mimeType: string): Promise<
   const { upload_url } = uploadData;
   if (!upload_url) throw new Error(`AssemblyAI upload failed: ${JSON.stringify(uploadData)}`);
 
-  // 3. Request transcription
   const transcriptRes = await fetch(`${ASSEMBLYAI_BASE}/transcript`, {
     method: 'POST',
-    headers: {
-      authorization: ASSEMBLYAI_API_KEY,
-      'content-type': 'application/json',
-    },
+    headers: { authorization: ASSEMBLYAI_API_KEY, 'content-type': 'application/json' },
     body: JSON.stringify({ audio_url: upload_url, speech_models: ['universal-2'] }),
   });
   const transcriptData = await transcriptRes.json();
@@ -55,7 +46,6 @@ async function transcribeWithAssemblyAI(uri: string, mimeType: string): Promise<
   const { id } = transcriptData;
   if (!id) throw new Error(`AssemblyAI transcript failed: ${JSON.stringify(transcriptData)}`);
 
-  // 4. Poll until done
   while (true) {
     await new Promise(r => setTimeout(r, 1500));
     const pollRes = await fetch(`${ASSEMBLYAI_BASE}/transcript/${id}`, {
@@ -73,25 +63,31 @@ interface VoiceInputProps {
   isProcessing: boolean;
 }
 
+// States: idle -> recording -> pendingConfirm -> transcribing -> idle
+type VoiceState = 'idle' | 'recording' | 'pendingConfirm' | 'transcribing';
+
 export default function VoiceInput({ onTranscript, isProcessing }: VoiceInputProps) {
   const colors = useThemeColors();
-  const [isRecording, setIsRecording] = useState(false);
-  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [state, setState] = useState<VoiceState>('idle');
   const [showTextInput, setShowTextInput] = useState(false);
   const [textInput, setTextInput] = useState('');
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
 
-  // ── expo-audio recorder (native) ────────────────────────────────────────
+  // Stored recording info for confirmation step
+  const pendingAudioRef = useRef<{ uri: string; mimeType: string } | null>(null);
+  const pendingWebBlobRef = useRef<Blob | null>(null);
+
+  // ── expo-audio recorder (native) ──────────────────────────────────────
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
 
-  // ── web recording refs ───────────────────────────────────────────────────
+  // ── web recording refs ────────────────────────────────────────────────
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // ── Pulse animation ──────────────────────────────────────────────────────
+  // ── Pulse animation while recording ──────────────────────────────────
   useEffect(() => {
-    if (isRecording) {
+    if (state === 'recording') {
       const pulse = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, { toValue: 1.15, duration: 600, useNativeDriver: true }),
@@ -111,21 +107,17 @@ export default function VoiceInput({ onTranscript, isProcessing }: VoiceInputPro
       pulseAnim.setValue(1);
       glowAnim.setValue(0);
     }
-  }, [isRecording, pulseAnim, glowAnim]);
+  }, [state, pulseAnim, glowAnim]);
 
-  // ── Native recording (expo-audio) ────────────────────────────────────────
+  // ── Native recording ─────────────────────────────────────────────────
   const startRecordingNative = useCallback(async () => {
     try {
       const { granted } = await requestRecordingPermissionsAsync();
-      if (!granted) {
-        console.log('[VoiceInput] Permission denied');
-        return;
-      }
-
+      if (!granted) return;
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
       await recorder.prepareToRecordAsync();
       recorder.record();
-      setIsRecording(true);
+      setState('recording');
     } catch (err) {
       console.error('[VoiceInput] Failed to start recording:', err);
     }
@@ -133,40 +125,29 @@ export default function VoiceInput({ onTranscript, isProcessing }: VoiceInputPro
 
   const stopRecordingNative = useCallback(async () => {
     try {
-      setIsRecording(false);
-      setIsTranscribing(true);
-
       await recorder.stop();
       await setAudioModeAsync({ allowsRecording: false });
-
       const uri = recorder.uri;
-      if (!uri) {
-        console.error('[VoiceInput] No recording URI');
-        return;
-      }
-
+      if (!uri) { setState('idle'); return; }
       const ext = uri.split('.').pop() || 'm4a';
       const mimeType = ext === 'm4a' ? 'audio/mp4' : `audio/${ext}`;
-      const text = await transcribeWithAssemblyAI(uri, mimeType);
-      console.log('[VoiceInput] Transcription:', text);
-      if (text) onTranscript(text);
+      pendingAudioRef.current = { uri, mimeType };
+      setState('pendingConfirm');
     } catch (err) {
-      console.error('[VoiceInput] Transcription error:', err);
-    } finally {
-      setIsTranscribing(false);
+      console.error('[VoiceInput] Stop error:', err);
+      setState('idle');
     }
-  }, [recorder, onTranscript]);
+  }, [recorder]);
 
-  // ── Web recording ────────────────────────────────────────────────────────
+  // ── Web recording ────────────────────────────────────────────────────
   const startRecordingWeb = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
-
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       mediaRecorder.start();
-      setIsRecording(true);
+      setState('recording');
     } catch (err) {
       console.error('[VoiceInput] Web recording error:', err);
     }
@@ -175,9 +156,6 @@ export default function VoiceInput({ onTranscript, isProcessing }: VoiceInputPro
   const stopRecordingWeb = useCallback(async () => {
     if (!mediaRecorderRef.current) return;
     try {
-      setIsRecording(false);
-      setIsTranscribing(true);
-
       const audioBlob: Blob = await new Promise((resolve) => {
         const chunks: Blob[] = [];
         if (!mediaRecorderRef.current) { resolve(new Blob()); return; }
@@ -191,43 +169,81 @@ export default function VoiceInput({ onTranscript, isProcessing }: VoiceInputPro
         streamRef.current = null;
       }
 
-      const uploadRes = await fetch(`${ASSEMBLYAI_BASE}/upload`, {
-        method: 'POST',
-        headers: { authorization: ASSEMBLYAI_API_KEY, 'content-type': 'audio/webm' },
-        body: audioBlob,
-      });
-      const { upload_url } = await uploadRes.json();
+      pendingWebBlobRef.current = audioBlob;
+      setState('pendingConfirm');
+    } catch (err) {
+      console.error('[VoiceInput] Web stop error:', err);
+      setState('idle');
+    }
+  }, []);
 
-      const transcriptRes = await fetch(`${ASSEMBLYAI_BASE}/transcript`, {
-        method: 'POST',
-        headers: { authorization: ASSEMBLYAI_API_KEY, 'content-type': 'application/json' },
-        body: JSON.stringify({ audio_url: upload_url }),
-      });
-      const { id } = await transcriptRes.json();
+  // ── Confirm => transcribe ────────────────────────────────────────────
+  const confirmTranscription = useCallback(async () => {
+    setState('transcribing');
+    try {
+      if (Platform.OS === 'web') {
+        const blob = pendingWebBlobRef.current;
+        if (!blob) { setState('idle'); return; }
 
-      while (true) {
-        await new Promise(r => setTimeout(r, 1500));
-        const pollRes = await fetch(`${ASSEMBLYAI_BASE}/transcript/${id}`, {
-          headers: { authorization: ASSEMBLYAI_API_KEY },
+        const uploadRes = await fetch(`${ASSEMBLYAI_BASE}/upload`, {
+          method: 'POST',
+          headers: { authorization: ASSEMBLYAI_API_KEY, 'content-type': 'audio/webm' },
+          body: blob,
         });
-        const poll = await pollRes.json();
-        if (poll.status === 'completed') { if (poll.text) onTranscript(poll.text); break; }
-        if (poll.status === 'error') throw new Error(poll.error);
+        const { upload_url } = await uploadRes.json();
+        const transcriptRes = await fetch(`${ASSEMBLYAI_BASE}/transcript`, {
+          method: 'POST',
+          headers: { authorization: ASSEMBLYAI_API_KEY, 'content-type': 'application/json' },
+          body: JSON.stringify({ audio_url: upload_url, speech_models: ['universal-2'] }),
+        });
+        const { id } = await transcriptRes.json();
+
+        while (true) {
+          await new Promise(r => setTimeout(r, 1500));
+          const pollRes = await fetch(`${ASSEMBLYAI_BASE}/transcript/${id}`, {
+            headers: { authorization: ASSEMBLYAI_API_KEY },
+          });
+          const poll = await pollRes.json();
+          if (poll.status === 'completed') { if (poll.text) onTranscript(poll.text); break; }
+          if (poll.status === 'error') throw new Error(poll.error);
+        }
+      } else {
+        const audio = pendingAudioRef.current;
+        if (!audio) { setState('idle'); return; }
+        const text = await transcribeWithAssemblyAI(audio.uri, audio.mimeType);
+        if (text) onTranscript(text);
       }
     } catch (err) {
-      console.error('[VoiceInput] Web transcription error:', err);
+      console.error('[VoiceInput] Transcription error:', err);
     } finally {
-      setIsTranscribing(false);
+      pendingAudioRef.current = null;
+      pendingWebBlobRef.current = null;
+      setState('idle');
     }
   }, [onTranscript]);
 
+  // ── Discard => go back to idle ───────────────────────────────────────
+  const discardRecording = useCallback(() => {
+    pendingAudioRef.current = null;
+    pendingWebBlobRef.current = null;
+    setState('idle');
+  }, []);
+
+  // ── Re-record => start fresh ─────────────────────────────────────────
+  const reRecord = useCallback(() => {
+    pendingAudioRef.current = null;
+    pendingWebBlobRef.current = null;
+    Platform.OS === 'web' ? startRecordingWeb() : startRecordingNative();
+  }, [startRecordingNative, startRecordingWeb]);
+
+  // ── Mic button handler ───────────────────────────────────────────────
   const handleMicPress = useCallback(() => {
-    if (isRecording) {
+    if (state === 'recording') {
       Platform.OS === 'web' ? stopRecordingWeb() : stopRecordingNative();
-    } else {
+    } else if (state === 'idle') {
       Platform.OS === 'web' ? startRecordingWeb() : startRecordingNative();
     }
-  }, [isRecording, startRecordingNative, stopRecordingNative, startRecordingWeb, stopRecordingWeb]);
+  }, [state, startRecordingNative, stopRecordingNative, startRecordingWeb, stopRecordingWeb]);
 
   const handleTextSubmit = useCallback(() => {
     if (textInput.trim()) {
@@ -237,12 +253,13 @@ export default function VoiceInput({ onTranscript, isProcessing }: VoiceInputPro
     }
   }, [textInput, onTranscript]);
 
-  const isDisabled = isProcessing || isTranscribing;
+  const isDisabled = isProcessing || state === 'transcribing';
   const glowColor = glowAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ['rgba(57,255,20,0.1)', 'rgba(57,255,20,0.4)'],
   });
 
+  // ── Text input mode ──────────────────────────────────────────────────
   if (showTextInput) {
     return (
       <View style={[styles.textInputContainer, { backgroundColor: colors.surface, borderColor: colors.surfaceBorder }]}>
@@ -275,6 +292,47 @@ export default function VoiceInput({ onTranscript, isProcessing }: VoiceInputPro
     );
   }
 
+  // ── Pending confirmation UI ──────────────────────────────────────────
+  if (state === 'pendingConfirm') {
+    return (
+      <View style={styles.container}>
+        <View style={[styles.confirmCard, { backgroundColor: colors.surface, borderColor: colors.surfaceBorder }]}>
+          <Text style={[styles.confirmTitle, { color: colors.text }]}>Recording complete</Text>
+          <Text style={[styles.confirmSubtitle, { color: colors.textMuted }]}>
+            Send this recording for transcription?
+          </Text>
+
+          <View style={styles.confirmActions}>
+            <TouchableOpacity
+              style={[styles.confirmBtn, styles.discardBtn, { borderColor: colors.surfaceBorder }]}
+              onPress={discardRecording}
+            >
+              <MicOff size={18} color={colors.textMuted} />
+              <Text style={[styles.confirmBtnText, { color: colors.textMuted }]}>Discard</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.confirmBtn, styles.reRecordBtn, { borderColor: colors.warning, backgroundColor: colors.surfaceLight }]}
+              onPress={reRecord}
+            >
+              <RotateCcw size={18} color={colors.warning} />
+              <Text style={[styles.confirmBtnText, { color: colors.warning }]}>Re-record</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.confirmBtn, styles.sendBtn, { backgroundColor: colors.toxic }]}
+              onPress={confirmTranscription}
+            >
+              <CheckCircle2 size={18} color={colors.background} />
+              <Text style={[styles.confirmBtnText, { color: colors.background }]}>Confirm</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  // ── Main recording UI ────────────────────────────────────────────────
   return (
     <View style={styles.container}>
       <Animated.View style={[styles.glowRing, { backgroundColor: glowColor }]} />
@@ -283,16 +341,16 @@ export default function VoiceInput({ onTranscript, isProcessing }: VoiceInputPro
         <TouchableOpacity
           style={[
             styles.micBtn,
-            { backgroundColor: isRecording ? colors.danger : colors.toxic },
+            { backgroundColor: state === 'recording' ? colors.danger : colors.toxic },
             isDisabled && styles.micBtnDisabled,
           ]}
           onPress={handleMicPress}
           disabled={isDisabled}
           activeOpacity={0.8}
         >
-          {isTranscribing ? (
+          {state === 'transcribing' ? (
             <ActivityIndicator color={colors.background} size="small" />
-          ) : isRecording ? (
+          ) : state === 'recording' ? (
             <MicOff size={28} color={colors.background} />
           ) : (
             <Mic size={28} color={colors.background} />
@@ -301,16 +359,16 @@ export default function VoiceInput({ onTranscript, isProcessing }: VoiceInputPro
       </Animated.View>
 
       <Text style={[styles.hint, { color: colors.textMuted }]}>
-        {isTranscribing
+        {state === 'transcribing'
           ? 'Transcribing...'
           : isProcessing
             ? 'Generating plan...'
-            : isRecording
+            : state === 'recording'
               ? 'Tap to stop recording'
               : 'Tap to speak your plans'}
       </Text>
 
-      {!isRecording && !isTranscribing && !isProcessing && (
+      {state === 'idle' && !isProcessing && (
         <TouchableOpacity
           style={[styles.keyboardBtn, { borderColor: colors.surfaceBorder }]}
           onPress={() => setShowTextInput(true)}
@@ -399,5 +457,47 @@ const styles = StyleSheet.create({
   sendText: {
     fontSize: 14,
     fontWeight: '700',
+  },
+  // ── Confirmation card ──────────────────────────────────────
+  confirmCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 20,
+    width: '100%',
+    alignItems: 'center',
+    gap: 8,
+  },
+  confirmTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  confirmSubtitle: {
+    fontSize: 13,
+    marginBottom: 12,
+  },
+  confirmActions: {
+    flexDirection: 'row',
+    gap: 10,
+    width: '100%',
+  },
+  confirmBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  discardBtn: {
+    borderWidth: 1,
+  },
+  reRecordBtn: {
+    borderWidth: 1,
+  },
+  sendBtn: {},
+  confirmBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
 });
