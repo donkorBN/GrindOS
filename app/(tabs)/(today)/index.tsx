@@ -118,13 +118,46 @@ export default function TodayScreen() {
           />
         }
       >
-        {/* ── Header with greeting ──────────────────────────── */}
+        {/* ── Header ──────────────────────────────────────── */}
         <View style={styles.header}>
-          <View>
-            <Text style={[styles.headerLabel, { color: colors.textSecondary }]}>Home</Text>
-            <Text style={[styles.greeting, { color: colors.text }]}>Hello</Text>
-            <Text style={[styles.userName, { color: colors.text }]}>{userName}</Text>
+          <View style={styles.headerLeft}>
+            <Text style={[styles.headerToday, { color: colors.textSecondary }]}>Today,</Text>
+            <Text style={[styles.headerGrind, { color: colors.text }]}>Your grind</Text>
           </View>
+          <View style={[styles.avatar, { backgroundColor: colors.accent }]}>
+            <Text style={styles.avatarText}>{userName[0]?.toUpperCase()}</Text>
+          </View>
+        </View>
+
+        {/* ── Weekly day row ──────────────────────────────── */}
+        <View style={styles.weekRow}>
+          {(() => {
+            const today = new Date();
+            const dayOfWeek = today.getDay(); // 0=Sun
+            const monday = new Date(today);
+            monday.setDate(today.getDate() - ((dayOfWeek + 6) % 7));
+            const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+            return days.map((d, i) => {
+              const date = new Date(monday);
+              date.setDate(monday.getDate() + i);
+              const isToday = date.toDateString() === today.toDateString();
+              return (
+                <View key={i} style={styles.weekDay}>
+                  <Text style={[styles.weekDayLabel, { color: colors.textMuted }]}>{d}</Text>
+                  <View style={[
+                    styles.weekDayCircle,
+                    isToday && { backgroundColor: colors.accent },
+                    !isToday && { backgroundColor: colors.surface },
+                  ]}>
+                    <Text style={[
+                      styles.weekDayNum,
+                      isToday ? { color: '#FFF' } : { color: colors.textSecondary },
+                    ]}>{date.getDate()}</Text>
+                  </View>
+                </View>
+              );
+            });
+          })()}
         </View>
 
         {/* ── Voice / text input ────────────────────────────── */}
@@ -332,10 +365,19 @@ const styles = StyleSheet.create({
   scrollContent: { paddingHorizontal: 20, paddingTop: 10 },
 
   // Header
-  header: { marginBottom: 20 },
-  headerLabel: { fontSize: 14, fontWeight: '500', marginBottom: 8 },
-  greeting: { fontSize: 36, fontWeight: '800', letterSpacing: -1, lineHeight: 42 },
-  userName: { fontSize: 36, fontWeight: '800', letterSpacing: -1, lineHeight: 42 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
+  headerLeft: {},
+  headerToday: { fontSize: 22, fontWeight: '500', marginBottom: 2 },
+  headerGrind: { fontSize: 30, fontWeight: '800', letterSpacing: -0.5 },
+  avatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: '#FFF', fontSize: 18, fontWeight: '800' },
+
+  // Weekly day row
+  weekRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20, paddingHorizontal: 4 },
+  weekDay: { alignItems: 'center', gap: 6 },
+  weekDayLabel: { fontSize: 12, fontWeight: '600' },
+  weekDayCircle: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  weekDayNum: { fontSize: 14, fontWeight: '700' },
 
   // Progress card
   progressCard: {
