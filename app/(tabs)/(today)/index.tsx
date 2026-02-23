@@ -166,7 +166,7 @@ export default function TodayScreen() {
           isProcessing={isGenerating}
         />
 
-        {tasks.length === 0 && !isGenerating && (
+        {tasks.length === 0 && !isGenerating && !isLoading && (
           <CardSwap cards={TIP_CARDS} delay={4500} />
         )}
 
@@ -179,31 +179,59 @@ export default function TodayScreen() {
           </View>
         )}
 
-        {/* ── Daily progress card ──────────────────────────── */}
+        {/* ── Execution Score card ──────────────────────────── */}
         {tasks.length > 0 && (
           <View style={[styles.progressCard, { backgroundColor: colors.surface }]}>
             <View style={styles.progressHeader}>
               <View>
-                <Text style={[styles.progressTitle, { color: colors.text }]}>Daily progress</Text>
+                <Text style={[styles.progressTitle, { color: colors.text }]}>Execution Score</Text>
                 <Text style={[styles.progressSub, { color: colors.textSecondary }]}>
-                  {todayStats.completedTasks}/{todayStats.totalTasks} tasks completed
+                  {todayStats.executionTier} • {todayStats.completedTasks}/{todayStats.totalTasks} tasks
                 </Text>
               </View>
-              {streak > 0 && (
-                <View style={[styles.streakBadge, { backgroundColor: colors.accent + '20' }]}>
-                  <Text style={[styles.streakText, { color: colors.accent }]}>🔥 {streak}</Text>
-                </View>
-              )}
+              <View style={{ flexDirection: 'row', gap: 6 }}>
+                {settings.momentumMultiplier > 1.0 && (
+                  <View style={[styles.streakBadge, { backgroundColor: '#A855F720' }]}>
+                    <Text style={[styles.streakText, { color: '#A855F7' }]}>⚡ {settings.momentumMultiplier}x</Text>
+                  </View>
+                )}
+                {streak > 0 && (
+                  <View style={[styles.streakBadge, { backgroundColor: colors.accent + '20' }]}>
+                    <Text style={[styles.streakText, { color: colors.accent }]}>🔥 {streak}</Text>
+                  </View>
+                )}
+              </View>
             </View>
             <Text style={[styles.progressPercent, { color: colors.text }]}>
-              {Math.round(todayStats.completionRate)}%
+              {todayStats.executionScore}%
             </Text>
             <View style={[styles.progressBarBg, { backgroundColor: colors.surfaceLight }]}>
               <View style={[
                 styles.progressBarFill,
-                { backgroundColor: colors.accent, width: `${todayStats.completionRate}%` },
+                { backgroundColor: colors.completed, width: `${Math.min(todayStats.executionScore, 100)}%` },
               ]} />
             </View>
+          </View>
+        )}
+
+        {/* ── Identity XP ──────────────────────────────────── */}
+        {settings.identities?.length > 0 && (
+          <View style={{ marginBottom: 20 }}>
+            <Text style={[styles.sectionLabel, { color: colors.text }]}>Identities</Text>
+            {settings.identities.map((identity) => (
+              <View key={identity.id} style={[styles.categoryCard, { backgroundColor: colors.surface, marginTop: 8 }]}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <Text style={[styles.catLabel, { color: colors.text }]}>{identity.name} Lv.{identity.level}</Text>
+                  <Text style={[styles.catRatio, { color: colors.textMuted }]}>{identity.xp} XP</Text>
+                </View>
+                <View style={[styles.catProgressBg, { backgroundColor: colors.surfaceLight }]}>
+                  <View style={[
+                    styles.catProgressFill,
+                    { backgroundColor: '#A855F7', width: `${Math.min((identity.xp % 100), 100)}%` },
+                  ]} />
+                </View>
+              </View>
+            ))}
           </View>
         )}
 
@@ -322,7 +350,7 @@ export default function TodayScreen() {
         )}
 
         {/* ── Empty state ──────────────────────────────────── */}
-        {tasks.length === 0 && !isGenerating && (
+        {tasks.length === 0 && !isGenerating && !isLoading && (
           <View style={styles.emptyState}>
             <Text style={styles.emptyEmoji}>💀</Text>
             <Text style={[styles.emptyTitle, { color: colors.text }]}>Nothing planned.</Text>

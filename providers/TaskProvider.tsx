@@ -81,6 +81,8 @@ function docToSettings(doc: any): AppSettings {
     hapticFeedback: doc.hapticFeedback ?? DEFAULT_SETTINGS.hapticFeedback,
     dailyRecapEnabled: doc.dailyRecapEnabled ?? DEFAULT_SETTINGS.dailyRecapEnabled,
     theme: doc.theme || DEFAULT_SETTINGS.theme,
+    identities: doc.identitiesJson ? JSON.parse(doc.identitiesJson) : DEFAULT_SETTINGS.identities,
+    momentumMultiplier: doc.momentumMultiplier ?? DEFAULT_SETTINGS.momentumMultiplier,
   };
 }
 
@@ -113,6 +115,8 @@ function useTasksProvider() {
               hapticFeedback: DEFAULT_SETTINGS.hapticFeedback,
               dailyRecapEnabled: DEFAULT_SETTINGS.dailyRecapEnabled,
               theme: DEFAULT_SETTINGS.theme,
+              identitiesJson: JSON.stringify(DEFAULT_SETTINGS.identities),
+              momentumMultiplier: DEFAULT_SETTINGS.momentumMultiplier,
               userId: '',
             }
           );
@@ -134,12 +138,15 @@ function useTasksProvider() {
         hapticFeedback: newSettings.hapticFeedback,
         dailyRecapEnabled: newSettings.dailyRecapEnabled,
         theme: newSettings.theme,
+        identitiesJson: JSON.stringify(newSettings.identities),
+        momentumMultiplier: newSettings.momentumMultiplier,
       });
     } catch {
       // If update fails try create
       try {
         await databases.createDocument(DATABASE_ID, SETTINGS_COLLECTION_ID, SETTINGS_DOC_ID, {
           ...newSettings,
+          identitiesJson: JSON.stringify(newSettings.identities),
           userId: '',
         });
       } catch (e) {
@@ -272,6 +279,8 @@ function useTasksProvider() {
           totalTasks: d.totalTasks,
           completedTasks: d.completedTasks,
           completionRate: d.completionRate,
+          executionScore: d.executionScore ?? 0,
+          executionTier: d.executionTier || 'Slacking',
         }));
       } catch (e) {
         console.error('[TaskProvider] Failed to load stats:', e);
@@ -279,43 +288,6 @@ function useTasksProvider() {
       }
     },
   });
-
-  // ── Today stats ─────────────────────────────────────────────────────────
-  const todayStats: DayStats = useMemo(() => {
-    const total = tasks.length;
-    const completed = tasks.filter(t => t.completed).length;
-    return {
-      date: todayKey,
-      totalTasks: total,
-      completedTasks: completed,
-      completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
-    };
-  }, [tasks, todayKey]);
-
-  // Persist today's stats whenever tasks change
-  useEffect(() => {
-    if (tasks.length === 0) return;
-    const upsertStats = async () => {
-      const body = {
-        date: todayKey,
-        totalTasks: todayStats.totalTasks,
-        completedTasks: todayStats.completedTasks,
-        completionRate: todayStats.completionRate,
-      };
-      try {
-        await databases.updateDocument(DATABASE_ID, STATS_COLLECTION_ID, `stats-${todayKey}`, body);
-      } catch {
-        try {
-          await databases.createDocument(DATABASE_ID, STATS_COLLECTION_ID, `stats-${todayKey}`, body);
-        } catch (e) {
-          console.error('[TaskProvider] Failed to upsert stats:', e);
-        }
-      }
-      queryClient.invalidateQueries({ queryKey: ['allStats'] });
-      queryClient.invalidateQueries({ queryKey: ['historyKeys'] });
-    };
-    upsertStats();
-  }, [todayStats, todayKey, tasks.length]);
 
   // ── Streak ───────────────────────────────────────────────────────────────
   const streak = useMemo(() => {
@@ -333,6 +305,78 @@ function useTasksProvider() {
     }
     return count;
   }, [allStats]);
+
+  // ── Today stats ─────────────────────────────────────────────────────────
+  const todayStats: DayStats = useMemo(() => {
+    const total = tasks.length;
+    const completed = tasks.filter(t => t.completed).length;
+    const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+    // Calculate Execution Score
+    // Formula: (completed_tasks / planned_tasks) * difficulty_weight * consistency_modifier
+    const difficultyWeight = tasks.reduce((sum, task) => {
+      if (!task.completed) return sum;
+      let w = 1;
+      if (task.priority === 'medium') w = 1.2;
+      if (task.priority === 'high') w = 1.5;
+      if (task.priority === 'critical') w = 2.0;
+      return sum + w;
+    }, 0);
+    const maxDifficultyWeight = tasks.reduce((sum, task) => {
+      let w = 1;
+      if (task.priority === 'medium') w = 1.2;
+      if (task.priority === 'high') w = 1.5;
+      if (task.priority === 'critical') w = 2.0;
+      return sum + w;
+    }, 0);
+
+    // consistency modifier (max 1.5 for 30 day streak)
+    const consistencyModifier = Math.min(1.5, 1 + (streak / 60));
+
+    const executionScore = total > 0 ? Math.round(((difficultyWeight / maxDifficultyWeight) * 100) * consistencyModifier) : 0;
+
+    let executionTier: import('@/types/task').ExecutionTier = 'Slacking';
+    if (executionScore >= 120) executionTier = 'Unstoppable';
+    else if (executionScore >= 90) executionTier = 'Relentless';
+    else if (executionScore >= 60) executionTier = 'Focused';
+    else if (executionScore >= 30) executionTier = 'Stable';
+
+    return {
+      date: todayKey,
+      totalTasks: total,
+      completedTasks: completed,
+      completionRate,
+      executionScore,
+      executionTier,
+    };
+  }, [tasks, todayKey, streak]);
+
+  // Persist today's stats whenever tasks change
+  useEffect(() => {
+    if (tasks.length === 0) return;
+    const upsertStats = async () => {
+      const body = {
+        date: todayKey,
+        totalTasks: todayStats.totalTasks,
+        completedTasks: todayStats.completedTasks,
+        completionRate: todayStats.completionRate,
+        executionScore: todayStats.executionScore,
+        executionTier: todayStats.executionTier,
+      };
+      try {
+        await databases.updateDocument(DATABASE_ID, STATS_COLLECTION_ID, `stats-${todayKey}`, body);
+      } catch {
+        try {
+          await databases.createDocument(DATABASE_ID, STATS_COLLECTION_ID, `stats-${todayKey}`, body);
+        } catch (e) {
+          console.error('[TaskProvider] Failed to upsert stats:', e);
+        }
+      }
+      queryClient.invalidateQueries({ queryKey: ['allStats'] });
+      queryClient.invalidateQueries({ queryKey: ['historyKeys'] });
+    };
+    upsertStats();
+  }, [todayStats, todayKey, tasks.length]);
 
   // ── Category stats ───────────────────────────────────────────────────────
   const categoryStats = useMemo(() => {

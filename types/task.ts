@@ -29,14 +29,26 @@ export interface DayPlan {
   toxicQuote: string;
 }
 
+export type ExecutionTier = 'Stable' | 'Focused' | 'Relentless' | 'Unstoppable' | 'Slacking';
+
 export interface DayStats {
   date: string;
   totalTasks: number;
   completedTasks: number;
   completionRate: number;
+  executionScore: number;
+  executionTier: ExecutionTier;
 }
 
 export type ToxicLevel = 'mild' | 'spicy' | 'brutal';
+
+export interface Identity {
+  id: string;
+  name: string; // e.g., 'Founder', 'Athlete', 'Reader'
+  xp: number; // Continuous XP
+  level: number; // Derived level
+  weeklyCommitment: number; // Target times per week
+}
 
 export interface AppSettings {
   toxicLevel: ToxicLevel;
@@ -44,6 +56,8 @@ export interface AppSettings {
   hapticFeedback: boolean;
   dailyRecapEnabled: boolean;
   theme: 'dark' | 'light';
+  identities: Identity[];
+  momentumMultiplier: number;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -52,4 +66,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   hapticFeedback: true,
   dailyRecapEnabled: true,
   theme: 'dark',
+  identities: [],
+  momentumMultiplier: 1.0,
 };

@@ -83,15 +83,15 @@ export default function ProgressScreen() {
 
         {/* ── Today progress ──────────────────────────── */}
         <View style={[styles.progressCard, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>Today's progress</Text>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Execution Score</Text>
           <Text style={[styles.cardSub, { color: colors.textSecondary }]}>
-            {todayStats.completedTasks}/{todayStats.totalTasks} tasks
+            {todayStats.executionTier} • {todayStats.completedTasks}/{todayStats.totalTasks} tasks
           </Text>
           <Text style={[styles.bigPercent, { color: colors.text }]}>
-            {Math.round(todayStats.completionRate)}%
+            {todayStats.executionScore}%
           </Text>
           <View style={[styles.barBg, { backgroundColor: colors.surfaceLight }]}>
-            <View style={[styles.barFill, { backgroundColor: colors.accent, width: `${todayStats.completionRate}%` }]} />
+            <View style={[styles.barFill, { backgroundColor: colors.completed, width: `${Math.min(todayStats.executionScore, 100)}%` }]} />
           </View>
         </View>
 
