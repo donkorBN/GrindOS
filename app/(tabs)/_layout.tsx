@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Home, BarChart3, Settings, Plus } from 'lucide-react-native';
+import { Home, BarChart3, Settings, Plus, PieChart } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -68,7 +68,7 @@ export default function TabLayout() {
             title: 'Analytics',
             tabBarIcon: ({ color, focused }) => (
               <View style={styles.tabItem}>
-                <BarChart3 size={22} color={color} />
+                <PieChart size={22} color={color} />
                 {focused && <View style={[styles.activeDot, { backgroundColor: colors.accent }]} />}
               </View>
             ),
