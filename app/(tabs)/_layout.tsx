@@ -1,11 +1,16 @@
 import { Tabs } from 'expo-router';
 import { Home, BarChart3, Settings, Plus } from 'lucide-react-native';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { useThemeColors } from '@/hooks/useThemeColors';
+import { scheduleHalfHourCheckIn } from '@/utils/notifications';
 
 export default function TabLayout() {
   const colors = useThemeColors();
+
+  useEffect(() => {
+    scheduleHalfHourCheckIn();
+  }, []);
   return (
     <Tabs
       screenOptions={{
