@@ -367,8 +367,8 @@ export default function VoiceInput({ onTranscript, isProcessing }: VoiceInputPro
           : isProcessing
             ? 'Generating plan...'
             : state === 'recording'
-              ? 'Tap to stop recording'
-              : 'Tap to speak your plans'}
+              ? 'Tap to stop recording\n(Mention exact times if needed)'
+              : 'Tap to speak your plans\n(Mention exact times if needed)'}
       </Text>
 
       {state === 'idle' && !isProcessing && (

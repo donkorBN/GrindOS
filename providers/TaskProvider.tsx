@@ -403,7 +403,7 @@ function useTasksProvider() {
         messages: [
           {
             role: 'user' as const,
-            content: `You are a toxic motivational AI task planner. Based on the user's voice input, create a structured daily plan. Be ${settings.toxicLevel} in your quote. User said: "${transcript}"`,
+            content: `You are a toxic motivational AI task planner. Based on the user's voice input, create a structured daily plan.\n\nCRITICAL RULE: DO NOT assign specific times (e.g. 9:00 AM) to tasks UNLESS the user explicitly mentions the time. Leave 'timeSlot' empty or generic if no time is mentioned.\n\nBe ${settings.toxicLevel} in your quote. User said: "${transcript}"`,
           },
         ],
         schema: taskSchema,

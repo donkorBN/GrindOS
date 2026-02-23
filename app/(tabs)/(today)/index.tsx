@@ -31,10 +31,10 @@ import CardSwap from '@/components/CardSwap';
 import { Task } from '@/types/task';
 
 const TIP_CARDS = [
-  { icon: '🎯', title: 'Speak Your Goals', body: 'Tap the mic and tell GrindOS what you need to get done today.' },
+  { icon: '🎯', title: 'Speak Your Goals', body: 'Tell GrindOS what you need to get done. Mention specific times if you have them!' },
+  { icon: '🔄', title: 'Recurring Tasks', body: 'Keep a record of your daily routines so you don\'t have to speak them every day.' },
   { icon: '⚡', title: 'Subtask Mastery', body: 'Tap a task to expand it. Mark subtasks as you crush them.' },
   { icon: '🔥', title: 'Streak Power', body: 'Complete tasks daily to build your streak.' },
-  { icon: '🧠', title: 'Daily Recap', body: 'Get an AI-generated review of your performance.' },
 ];
 
 export default function TodayScreen() {
